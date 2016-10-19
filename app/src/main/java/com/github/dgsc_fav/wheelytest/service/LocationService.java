@@ -55,6 +55,13 @@ public class LocationService extends ForegroundService {
 
     @Override
     protected void serviceTask() {
+        TimerTask heartBeatTask = new TimerTask() {
+            @Override
+            public void run() {
+                Log.i(TAG, mInstanceId + ": " + mServiceStartId + " ***I'm  Unstoppable Today!***");
+            }
+        };
+        Timer timer = new Timer();
         timer.scheduleAtFixedRate(heartBeatTask, 0, 15000);
     }
 
@@ -68,15 +75,6 @@ public class LocationService extends ForegroundService {
     public Location getLocation() {
         return null;
     }
-
-
-    TimerTask heartBeatTask = new TimerTask() {
-        @Override
-        public void run() {
-            Log.i(TAG, mInstanceId + ": " + mServiceStartId + " ***I'm  Unstoppable Today!***");
-        }
-    };
-    Timer     timer         = new Timer();
 
     static class ServiceStub extends ILocationAidlInterface.Stub {
 
