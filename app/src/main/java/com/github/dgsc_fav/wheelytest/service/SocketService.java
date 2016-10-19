@@ -64,7 +64,7 @@ public class SocketService extends ForegroundService {
             }
         };
         Timer timer = new Timer();
-        timer.scheduleAtFixedRate(heartBeatTask, 0, 15000);
+        timer.scheduleAtFixedRate(heartBeatTask, 0, 30000);
     }
 
     @Override
