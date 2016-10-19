@@ -1,7 +1,6 @@
 package com.github.dgsc_fav.wheelytest.ui.activity;
 
 import android.location.Location;
-import android.location.LocationManager;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
@@ -10,6 +9,9 @@ import android.widget.Button;
 import android.widget.Toast;
 
 import com.github.dgsc_fav.wheelytest.R;
+import com.github.dgsc_fav.wheelytest.api.model.SimpleLocation;
+import com.github.dgsc_fav.wheelytest.provider.DataManager;
+import com.github.dgsc_fav.wheelytest.provider.IDataProvider;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -17,14 +19,24 @@ import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Observable;
+import java.util.Observer;
+
 /**
  * Created by DG on 18.10.2016.
  */
-public class MapsActivity extends AppCompatActivity implements OnMapReadyCallback {
-    public static final String PARAMS_EXTRA_KEY = "city";
-    private GoogleMap mMap;
-    private Location  mLocation;
-    private Button    mDisconnect;
+public class MapsActivity extends AppCompatActivity implements OnMapReadyCallback, Observer {
+
+    public static final String EXTRA_KEY_LOCATIONS   = "locations";
+    public static final String EXTRA_KEY_MY_LOCATION = "my_location";
+
+    private IDataProvider        mDataProvider;
+    private GoogleMap            mMap;
+    private List<SimpleLocation> mLocations;
+    private Location             mMyLocation;
+    private Button               mDisconnect;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -38,7 +50,8 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
 
         if(getIntent() != null) {
-            mLocation = (Location) getIntent().getParcelableExtra(PARAMS_EXTRA_KEY);
+            mLocations = getIntent().getParcelableArrayListExtra(EXTRA_KEY_LOCATIONS);
+            mMyLocation = getIntent().getParcelableExtra(EXTRA_KEY_MY_LOCATION);
         }
 
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
@@ -55,8 +68,27 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
         });
     }
 
+    @Override
+    public void onStart() {
+        super.onStart();
+
+        // todo подписаться на события о новых маркерах
+
+        DataManager.getInstance(this).addObserver(this);
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+
+        // todo отписаться от событий о новых маркерах
+
+        DataManager.getInstance(this).deleteObserver(this);
+    }
+
     private void doDisconnect() {
         Toast.makeText(this, getString(R.string.disconnect_button_text), Toast.LENGTH_SHORT).show();
+        onBackPressed();
     }
 
     @Override
@@ -84,25 +116,49 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
     public void onMapReady(GoogleMap googleMap) {
         float zoomFactory = 15;
 
-        if(mLocation == null) {
+        if(mLocations == null) {
+            mLocations = new ArrayList<>();
             // отправим на бермуды, если открыли активити локации
-            mLocation = new Location(LocationManager.PASSIVE_PROVIDER);
-            mLocation.setLatitude((float) 26.629167);
-            mLocation.setLongitude((float) -70.883611);
+            SimpleLocation location = new SimpleLocation();
+            location.setId(0);
+            location.setLatitude((float) 26.629167);
+            location.setLongitude((float) -70.883611);
+            mLocations.add(location);
             zoomFactory = 5;
         }
 
         mMap = googleMap;
 
-        // Add a marker in M and move the camera
-        LatLng m = new LatLng(mLocation.getLatitude(), mLocation.getLongitude());
-
-        mMap.addMarker(new MarkerOptions().position(m).title("1"));
+        fillMarkers(mLocations);
 
         // сперва зум, потом координаты, иначе промахнётся
         mMap.moveCamera(CameraUpdateFactory.zoomTo(zoomFactory));
         // потом координаты, иначе промахнётся
-        mMap.animateCamera(CameraUpdateFactory.newLatLng(m));
+        if(mMyLocation != null) {
+            mMap.animateCamera(CameraUpdateFactory.newLatLng(
+                    new LatLng(mMyLocation.getLatitude(), mMyLocation.getLongitude())));
+        }
+
         //mMap.setMyLocationEnabled(true);
+    }
+
+    private void fillMarkers(List<SimpleLocation> locations) {
+        mMap.clear();
+
+        for(int i = 0; i < locations.size(); i++) {
+            SimpleLocation simpleLocation = locations.get(i);
+            // Add a marker in M and move the camera
+            LatLng m = new LatLng(simpleLocation.getLatitude(), simpleLocation.getLongitude());
+
+            mMap.addMarker(
+                    new MarkerOptions().position(m).title(String.valueOf(simpleLocation.getId())));
+        }
+    }
+
+    @Override
+    public void update(Observable o, Object arg) {
+        if(arg instanceof List) {
+            fillMarkers((List<SimpleLocation>) arg);
+        }
     }
 }
