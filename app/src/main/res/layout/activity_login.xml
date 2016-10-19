@@ -75,5 +75,15 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="@string/connect_button_text"/>
+
     </android.support.v7.widget.ButtonBarLayout>
+
+    <ProgressBar
+        android:id="@+id/progress_bar"
+        style="@android:style/Widget.ProgressBar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerInParent="true"
+        android:layout_gravity="center"
+        android:indeterminate="true"/>
 </RelativeLayout>

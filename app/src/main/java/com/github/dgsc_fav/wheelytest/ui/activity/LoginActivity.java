@@ -1,5 +1,6 @@
 package com.github.dgsc_fav.wheelytest.ui.activity;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
@@ -7,7 +8,7 @@ import android.text.TextUtils;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.Toast;
+import android.widget.ProgressBar;
 
 import com.github.dgsc_fav.wheelytest.R;
 
@@ -16,9 +17,10 @@ import com.github.dgsc_fav.wheelytest.R;
  */
 public class LoginActivity extends AppCompatActivity {
 
-    private EditText mUsername;
-    private EditText mPassword;
-    private Button   mConnect;
+    private EditText    mUsername;
+    private EditText    mPassword;
+    private Button      mConnect;
+    private ProgressBar mProgressBar;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -35,6 +37,7 @@ public class LoginActivity extends AppCompatActivity {
         mUsername = (EditText) findViewById(R.id.username);
         mPassword = (EditText) findViewById(R.id.password);
         mConnect = (Button) findViewById(R.id.connect);
+        mProgressBar = (ProgressBar) findViewById(R.id.progress_bar);
 
         mConnect.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -44,6 +47,22 @@ public class LoginActivity extends AppCompatActivity {
                 }
             }
         });
+
+        enableInputs();
+    }
+
+    private void enableInputs() {
+        mUsername.setEnabled(true);
+        mPassword.setEnabled(true);
+        mConnect.setEnabled(true);
+        mProgressBar.setVisibility(View.GONE);
+    }
+
+    private void disableInputs() {
+        mUsername.setEnabled(false);
+        mPassword.setEnabled(false);
+        mConnect.setEnabled(false);
+        mProgressBar.setVisibility(View.VISIBLE);
     }
 
     public boolean isUsernameAccept() {
@@ -71,7 +90,14 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void doConnect() {
-        Toast.makeText(this, getString(R.string.connect_button_text), Toast.LENGTH_SHORT).show();
+
+        disableInputs();
+
+        // connect
+
+        // TODO: 19.10.2016 as successfull
+        startActivity(new Intent(this, MapsActivity.class));
+        finish(); // не возвращаемся по назад из MapsActivity
     }
 }
 

@@ -40,4 +40,4 @@ captures/
 .DS_Store
 
 # Keystore files
-*.jks
+#*.jks
