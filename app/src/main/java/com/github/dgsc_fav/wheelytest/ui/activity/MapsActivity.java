@@ -1,9 +1,13 @@
 package com.github.dgsc_fav.wheelytest.ui.activity;
 
+import android.Manifest;
+import android.content.pm.PackageManager;
 import android.location.Location;
 import android.os.Bundle;
-import android.support.v7.app.AppCompatActivity;
+import android.os.RemoteException;
+import android.support.v4.app.ActivityCompat;
 import android.support.v7.widget.Toolbar;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.Toast;
@@ -27,7 +31,7 @@ import java.util.Observer;
 /**
  * Created by DG on 18.10.2016.
  */
-public class MapsActivity extends AppCompatActivity implements OnMapReadyCallback, Observer {
+public class MapsActivity extends BaseActivity implements OnMapReadyCallback, Observer {
 
     public static final String EXTRA_KEY_LOCATIONS   = "locations";
     public static final String EXTRA_KEY_MY_LOCATION = "my_location";
@@ -131,15 +135,38 @@ public class MapsActivity extends AppCompatActivity implements OnMapReadyCallbac
 
         fillMarkers(mLocations);
 
+        if(mIsBound) {
+            try {
+                mMyLocation = mService.getLocation();
+                Log.i("TAG", "mMyLocation:" + mMyLocation);
+            } catch(RemoteException e) {
+                e.printStackTrace();
+            }
+        }
+
         // сперва зум, потом координаты, иначе промахнётся
         mMap.moveCamera(CameraUpdateFactory.zoomTo(zoomFactory));
         // потом координаты, иначе промахнётся
         if(mMyLocation != null) {
-            mMap.animateCamera(CameraUpdateFactory.newLatLng(
-                    new LatLng(mMyLocation.getLatitude(), mMyLocation.getLongitude())));
+            mMap.animateCamera(CameraUpdateFactory.newLatLng(new LatLng(mMyLocation.getLatitude(),
+                                                                        mMyLocation.getLongitude())));
         }
 
-        //mMap.setMyLocationEnabled(true);
+        if(ActivityCompat.checkSelfPermission(this,
+                                              Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat
+                                                                                                                                        .checkSelfPermission(
+                                                                                                                                                this,
+                                                                                                                                                Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            // here to request the missing permissions, and then overriding
+            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            //                                          int[] grantResults)
+            // to handle the case where the user grants the permission. See the documentation
+            // for ActivityCompat#requestPermissions for more details.
+            return;
+        }
+        mMap.setMyLocationEnabled(true);
     }
 
     private void fillMarkers(List<SimpleLocation> locations) {
