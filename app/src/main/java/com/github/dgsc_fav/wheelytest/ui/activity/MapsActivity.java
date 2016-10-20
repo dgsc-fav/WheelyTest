@@ -14,10 +14,11 @@ import android.widget.Button;
 import android.widget.Toast;
 
 import com.github.dgsc_fav.wheelytest.R;
-import com.github.dgsc_fav.wheelytest.api.model.SimpleLocation;
+import com.github.dgsc_fav.wheelytest.api.model.IdentifableLocation;
 import com.github.dgsc_fav.wheelytest.service.LocationServiceConsts;
 import com.github.dgsc_fav.wheelytest.service.ServiceHelper;
 import com.github.dgsc_fav.wheelytest.service.SocketService;
+import com.github.dgsc_fav.wheelytest.util.LocationUtils;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.FusedLocationProviderApi;
@@ -29,8 +30,14 @@ import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.LatLngBounds;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.reflect.TypeToken;
 
+import java.lang.reflect.Type;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Observable;
 import java.util.Observer;
@@ -38,7 +45,7 @@ import java.util.Observer;
 /**
  * Created by DG on 18.10.2016.
  */
-public class MapsActivity extends PermissionsActivity implements OnMapReadyCallback, Observer, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener, SocketService.ISocketServiceConnectionListener {
+public class MapsActivity extends PermissionsActivity implements OnMapReadyCallback, Observer, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener, SocketService.ISocketServiceConnectionListener, SocketService.IMessageListener {
 
     protected final ServiceConnection mSocketServiceConnection = new ServiceConnection() {
         @Override
@@ -46,6 +53,7 @@ public class MapsActivity extends PermissionsActivity implements OnMapReadyCallb
             mService = ((SocketService.MyBinder) service).getService();
             mIsBound = true;
             mService.setISocketServiceConnectionListener(MapsActivity.this);
+            mService.setIMessageListener(MapsActivity.this);
 
             if(mService.isConnected()) {
                 // если сокетное соединение есть
@@ -66,7 +74,7 @@ public class MapsActivity extends PermissionsActivity implements OnMapReadyCallb
     private boolean                  mIsBound;
     private Button                   mDisconnect;
     private View                     mInfo;
-    private List<SimpleLocation>     mLocations;
+    private List<IdentifableLocation>     mLocations;
     private Location                 mMyLocation;
     private GoogleMap                mMap;
     private LocationRequest          mLocationRequest;
@@ -124,7 +132,7 @@ public class MapsActivity extends PermissionsActivity implements OnMapReadyCallb
 
     @Override
     public void onMapReady(GoogleMap googleMap) {
-        float zoomFactory = 15;
+        float zoomFactory = 10;
 
         mMap = googleMap;
 
@@ -149,7 +157,7 @@ public class MapsActivity extends PermissionsActivity implements OnMapReadyCallb
         }
     }
 
-    private void fillMarkers(@Nullable List<SimpleLocation> locations) {
+    private void fillMarkers(@Nullable List<IdentifableLocation> locations) {
         mMap.clear();
 
         if(locations == null) {
@@ -157,13 +165,13 @@ public class MapsActivity extends PermissionsActivity implements OnMapReadyCallb
         }
 
         for(int i = 0; i < locations.size(); i++) {
-            SimpleLocation simpleLocation = locations.get(i);
+            IdentifableLocation identifableLocation = locations.get(i);
             // Add a marker in M and move the camera
-            LatLng m = new LatLng(simpleLocation.getLatitude(), simpleLocation.getLongitude());
+            LatLng m = new LatLng(identifableLocation.getLatitude(), identifableLocation.getLongitude());
 
             mMap.addMarker(new MarkerOptions()
                                    .position(m)
-                                   .title(String.valueOf(simpleLocation.getId())));
+                                   .title(String.valueOf(identifableLocation.getId())));
         }
     }
 
@@ -179,7 +187,7 @@ public class MapsActivity extends PermissionsActivity implements OnMapReadyCallb
     @Deprecated
     public void update(Observable o, Object arg) {
         if(arg instanceof List) {
-            fillMarkers((List<SimpleLocation>) arg);
+            fillMarkers((List<IdentifableLocation>) arg);
         }
     }
 
@@ -303,5 +311,45 @@ public class MapsActivity extends PermissionsActivity implements OnMapReadyCallb
 
         startActivity(new Intent(this, LoginActivity.class));
         finish();
+    }
+
+    @Override
+    public void onMessage(String msg) {
+        Type listType = new TypeToken<ArrayList<IdentifableLocation>>() {
+        }.getType();
+        GsonBuilder builder = new GsonBuilder();
+        Gson gson = builder.create();
+        final List<IdentifableLocation> identifableLocations = gson.fromJson(msg, listType);
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                fillMarkers(identifableLocations);
+                updateCameraPosition(identifableLocations);
+            }
+        });
+
+    }
+
+    // // TODO: 20.10.2016 добавить кнопочку на экран, рядом с кнопочкой Где я
+    // и пусть fillMarker bounds вычисляет
+    /**
+     * Наверное, надо сделать так, чтобы маркеры были видны на экране
+     * @param identifableLocations
+     */
+    private void updateCameraPosition(@Nullable final List<IdentifableLocation> identifableLocations) {
+        if(identifableLocations == null || identifableLocations.isEmpty()) {
+            return;
+        }
+
+        double minLat = LocationUtils.getMinLat(identifableLocations);
+        double minLon = LocationUtils.getMinLon(identifableLocations);
+        double maxLat = LocationUtils.getMaxLat(identifableLocations);
+        double maxLon = LocationUtils.getMaxLon(identifableLocations);
+
+        LatLngBounds latLngBounds = new LatLngBounds(new LatLng(minLat, minLon), new LatLng(maxLat,
+                                                                                         maxLon));
+        // Set the camera to the greatest possible zoom level that includes the
+        // bounds
+        mMap.animateCamera(CameraUpdateFactory.newLatLngBounds(latLngBounds, getResources().getDimensionPixelSize(R.dimen.map_bounds_padding)));
     }
 }

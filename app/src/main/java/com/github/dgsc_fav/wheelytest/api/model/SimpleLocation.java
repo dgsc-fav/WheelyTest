@@ -10,19 +10,17 @@ import com.google.gson.annotations.SerializedName;
  * Created by DG on 19.10.2016.
  */
 public class SimpleLocation implements Parcelable, Consts {
-    @SerializedName(ID)
-    private int   id;
     @SerializedName(LATITUDE)
-    private float latitude;
+    protected double latitude;
     @SerializedName(LONGITUDE)
-    private float longitude;
+    protected double longitude;
 
-    public SimpleLocation() {
-
+    public SimpleLocation(double latitude, double longitude) {
+        this.latitude = latitude;
+        this.longitude = longitude;
     }
 
     protected SimpleLocation(Parcel in) {
-        id = in.readInt();
         latitude = in.readFloat();
         longitude = in.readFloat();
     }
@@ -39,27 +37,19 @@ public class SimpleLocation implements Parcelable, Consts {
         }
     };
 
-    public int getId() {
-        return id;
-    }
-
-    public void setId(int id) {
-        this.id = id;
-    }
-
-    public float getLatitude() {
+    public double getLatitude() {
         return latitude;
     }
 
-    public void setLatitude(float latitude) {
+    public void setLatitude(double latitude) {
         this.latitude = latitude;
     }
 
-    public float getLongitude() {
+    public double getLongitude() {
         return longitude;
     }
 
-    public void setLongitude(float longitude) {
+    public void setLongitude(double longitude) {
         this.longitude = longitude;
     }
 
@@ -70,8 +60,7 @@ public class SimpleLocation implements Parcelable, Consts {
 
     @Override
     public void writeToParcel(Parcel dest, int flags) {
-        dest.writeInt(id);
-        dest.writeFloat(latitude);
-        dest.writeFloat(longitude);
+        dest.writeDouble(latitude);
+        dest.writeDouble(longitude);
     }
 }

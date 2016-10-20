@@ -7,7 +7,7 @@ import android.preference.PreferenceManager;
 /**
  * Created by DG on 20.10.2016.
  */
-
+@Deprecated
 public class TokenStore {
     private static final String PREF_NAME = "name";
     private static final String PREF_PSW = "psw";

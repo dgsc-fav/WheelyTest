@@ -20,7 +20,7 @@ import com.github.dgsc_fav.wheelytest.service.SocketService;
 /**
  * Created by DG on 19.10.2016.
  */
-public class LoginActivity extends PermissionsActivity implements SocketService.ISocketServiceConnectionListener {
+public class LoginActivity extends PermissionsActivity implements SocketService.ISocketServiceConnectionListener, SocketService.IMessageListener {
 
     private EditText    mUsername;
     private EditText    mPassword;
@@ -113,7 +113,7 @@ public class LoginActivity extends PermissionsActivity implements SocketService.
         final String password = mPassword.getText().toString();
 
         if(mIsBound) {
-            mService.connect(username, password, this);
+            mService.connect(username, password, this, this);
         }
 
         //ServiceHelper.ensureSocketService(this, username, password);
@@ -237,6 +237,11 @@ public class LoginActivity extends PermissionsActivity implements SocketService.
     public void onSocketServiceDisconnect(String msg, int reason) {
         Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
         enableInputs();
+    }
+
+    @Override
+    public void onMessage(String msg) {
+        // ignore
     }
 }
 

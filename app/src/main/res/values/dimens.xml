@@ -4,4 +4,5 @@
     <dimen name="activity_vertical_margin">16dp</dimen>
 
     <dimen name="map_button_bar_bottom_vertical_margin">48dp</dimen>
+    <dimen name="map_bounds_padding">56dp</dimen>
 </resources>
