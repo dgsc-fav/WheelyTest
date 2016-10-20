@@ -1,6 +1,5 @@
 package com.github.dgsc_fav.wheelytest.ui.activity;
 
-import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
 import android.support.v7.widget.Toolbar;
@@ -46,8 +45,11 @@ public class LoginActivity extends PermissionsActivity {
             }
         });
 
-        // проверка наличия permissions
-        checkLocationServicePermissions();
+        // проверка наличия сервисов google
+        if(isServicesAvailable()) {
+            // проверка наличия permissions
+            checkLocationServicePermissions();
+        }
     }
 
     private void enableInputs() {
@@ -112,12 +114,8 @@ public class LoginActivity extends PermissionsActivity {
 
     @Override
     public void processWithPermissionsDenied() {
-        showMessageOKCancel(R.string.about_location_permissions_info, new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                finish();
-            }
-        }, null);
+        finishWithDialog();
     }
+
 }
 

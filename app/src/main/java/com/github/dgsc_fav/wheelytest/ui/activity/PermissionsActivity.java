@@ -12,6 +12,8 @@ import android.support.v7.app.AppCompatActivity;
 import android.widget.Toast;
 
 import com.github.dgsc_fav.wheelytest.R;
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.GooglePlayServicesUtil;
 
 /**
  * Created by DG on 20.10.2016.
@@ -20,8 +22,14 @@ import com.github.dgsc_fav.wheelytest.R;
 public abstract class PermissionsActivity extends AppCompatActivity {
     public static final int PERMISSIONS_REQUEST_ACCESS_LOCATION = 100;
 
+    /**
+     * Продолжение работы, когда permission даны
+     */
     public abstract void processWithPermissionsGranted();
 
+    /**
+     * Продолжение работы, когда permission не даны
+     */
     public abstract void processWithPermissionsDenied();
 
     public void checkLocationServicePermissions() {
@@ -85,6 +93,15 @@ public abstract class PermissionsActivity extends AppCompatActivity {
         alertDialog.show();
     }
 
+    protected void finishWithDialog() {
+        showMessageOKCancel(R.string.about_location_permissions_info, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                finish();
+            }
+        }, null);
+    }
+
     public void requestLocationPermission() {
         ActivityCompat.requestPermissions(this, new String[]{
                 Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION
@@ -114,5 +131,16 @@ public abstract class PermissionsActivity extends AppCompatActivity {
         }
 
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+    }
+
+    public boolean isServicesAvailable() {
+        int resultCode = GooglePlayServicesUtil.isGooglePlayServicesAvailable(this);
+
+        if(ConnectionResult.SUCCESS == resultCode) {
+            return true;
+        } else {
+            GooglePlayServicesUtil.getErrorDialog(resultCode, this, 0).show();
+            return false;
+        }
     }
 }

@@ -1,21 +1,24 @@
 package com.github.dgsc_fav.wheelytest.ui.activity;
 
-import android.Manifest;
 import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.location.Location;
 import android.os.Bundle;
+import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
-import android.support.v4.app.ActivityCompat;
 import android.support.v7.widget.Toolbar;
-import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.Toast;
 
 import com.github.dgsc_fav.wheelytest.R;
 import com.github.dgsc_fav.wheelytest.api.model.SimpleLocation;
-import com.github.dgsc_fav.wheelytest.service.IntentConsts;
+import com.github.dgsc_fav.wheelytest.service.LocationServiceConsts;
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.location.FusedLocationProviderApi;
+import com.google.android.gms.location.LocationListener;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -30,18 +33,16 @@ import java.util.Observer;
 /**
  * Created by DG on 18.10.2016.
  */
-public class MapsActivity extends BaseActivity implements OnMapReadyCallback, Observer {
+public class MapsActivity extends PermissionsActivity implements OnMapReadyCallback, Observer, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener {
 
-    @Deprecated
-    public static final String EXTRA_KEY_LOCATIONS   = "locations";
-    @Deprecated
-    public static final String EXTRA_KEY_MY_LOCATION = "my_location";
-
-    private GoogleMap            mMap;
-    private List<SimpleLocation> mLocations;
-    private Location             mMyLocation;
-    private Button               mDisconnect;
-    private View               mInfo;
+    private Button                   mDisconnect;
+    private View                     mInfo;
+    private List<SimpleLocation>     mLocations;
+    private Location                 mMyLocation;
+    private GoogleMap                mMap;
+    private LocationRequest          mLocationRequest;
+    private FusedLocationProviderApi mFusedLocationProviderApi;
+    private GoogleApiClient          mGoogleApiClient;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -54,15 +55,6 @@ public class MapsActivity extends BaseActivity implements OnMapReadyCallback, Ob
         //noinspection ConstantConditions
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
 
-        if(getIntent() != null) {
-            mLocations = getIntent().getParcelableArrayListExtra(EXTRA_KEY_LOCATIONS);
-            mMyLocation = getIntent().getParcelableExtra(EXTRA_KEY_MY_LOCATION);
-        }
-
-        // Obtain the SupportMapFragment and get notified when the map is ready to be used.
-        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
-                                                                      .findFragmentById(R.id.map);
-        mapFragment.getMapAsync(this);
         mDisconnect = (Button) findViewById(R.id.disconnect);
 
         mDisconnect.setOnClickListener(new View.OnClickListener() {
@@ -75,14 +67,14 @@ public class MapsActivity extends BaseActivity implements OnMapReadyCallback, Ob
         mInfo = findViewById(R.id.textinfo);
 
         showSatelliteSearchInfo();
+
+        checkLocationServicePermissions();
     }
 
     private void doDisconnect() {
         Toast.makeText(this, getString(R.string.disconnect_button_text), Toast.LENGTH_SHORT).show();
 
-        if(mIsBound) {
-            mService.stopSelf();
-        }
+        mFusedLocationProviderApi.removeLocationUpdates(mGoogleApiClient, this);
 
         startActivity(new Intent(this, LoginActivity.class));
         finish();
@@ -110,35 +102,16 @@ public class MapsActivity extends BaseActivity implements OnMapReadyCallback, Ob
         // сперва зум, потом координаты, иначе промахнётся
         mMap.moveCamera(CameraUpdateFactory.zoomTo(zoomFactory));
 
-        // потом координаты, иначе промахнётся
-        if(mIsBound) {
-            mMyLocation = mService.getLocation();
-        }
+        updateMapToMyLocation();
 
-        updateMyLocation();
-
-        if(ActivityCompat.checkSelfPermission(this,
-                                              Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat
-                                                                                                                                        .checkSelfPermission(
-                                                                                                                                                this,
-                                                                                                                                                Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            // TODO: Consider calling
-            //    ActivityCompat#requestPermissions
-            // here to request the missing permissions, and then overriding
-            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-            //                                          int[] grantResults)
-            // to handle the case where the user grants the permission. See the documentation
-            // for ActivityCompat#requestPermissions for more details.
-            return;
-        }
+        //noinspection ResourceType
         mMap.setMyLocationEnabled(true);
     }
 
-    private void updateMyLocation() {
+    private void updateMapToMyLocation() {
         if(mMyLocation != null) {
             mMap.animateCamera(CameraUpdateFactory.newLatLng(new LatLng(mMyLocation.getLatitude(),
-                                                                        mMyLocation
-                                                                                .getLongitude())));
+                                                                        mMyLocation.getLongitude())));
             hideSatelliteSearchInfo();
         } else {
             showSatelliteSearchInfo();
@@ -157,8 +130,9 @@ public class MapsActivity extends BaseActivity implements OnMapReadyCallback, Ob
             // Add a marker in M and move the camera
             LatLng m = new LatLng(simpleLocation.getLatitude(), simpleLocation.getLongitude());
 
-            mMap.addMarker(new MarkerOptions().position(m)
-                                              .title(String.valueOf(simpleLocation.getId())));
+            mMap.addMarker(new MarkerOptions()
+                                   .position(m)
+                                   .title(String.valueOf(simpleLocation.getId())));
         }
     }
 
@@ -179,31 +153,72 @@ public class MapsActivity extends BaseActivity implements OnMapReadyCallback, Ob
     }
 
     @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-
-        Log.d("LOG_TAG", "requestCode = " + requestCode + ", resultCode = " + resultCode);
-
-        if(requestCode == REQUEST_CODE_OBSERVE_LOCATION && resultCode == RESULT_OK) {
-            if(data != null && data.getExtras() != null) {
-                mMyLocation = data.getExtras().getParcelable(IntentConsts.KEY_LOCATION);
-                updateMyLocation();
-            }
-        } else if(requestCode == REQUEST_CODE_OBSERVE_MARKERS && resultCode == RESULT_OK) {
-            if(data != null && data.getExtras() != null) {
-                List<SimpleLocation> markers = data.getExtras().getParcelableArrayList(IntentConsts.KEY_MARKERS);
-                fillMarkers(markers);
-            }
-        }
-    }
-
-    @Override
     public void processWithPermissionsGranted() {
+        // Obtain the SupportMapFragment and get notified when the map is ready to be used.
+        SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(
+                R.id.map);
+        mapFragment.getMapAsync(this);
 
+        getLocation();
     }
 
     @Override
     public void processWithPermissionsDenied() {
+        finishWithDialog();
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        if(mGoogleApiClient != null && !mGoogleApiClient.isConnected()) {
+            mGoogleApiClient.connect();
+        }
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+
+        if(mGoogleApiClient != null && mGoogleApiClient.isConnected()) {
+            mGoogleApiClient.disconnect();
+        }
+    }
+
+    private void getLocation() {
+        mLocationRequest = LocationRequest.create();
+        mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        mLocationRequest.setInterval(LocationServiceConsts.POLLING_FREQ);
+        mLocationRequest.setFastestInterval(LocationServiceConsts.FASTEST_UPDATE_FREQ);
+
+        mFusedLocationProviderApi = LocationServices.FusedLocationApi;
+
+        mGoogleApiClient = new GoogleApiClient.Builder(this)
+                                  .addApi(LocationServices.API)
+                                  .addConnectionCallbacks(this)
+                                  .addOnConnectionFailedListener(this)
+                                  .build();
+    }
+
+    @Override
+    public void onConnected(Bundle arg0) {
+        //noinspection ResourceType
+        mFusedLocationProviderApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, this);
+    }
+
+    @Override
+    public void onConnectionSuspended(int i) {
+
+    }
+
+    @Override
+    public void onLocationChanged(Location location) {
+        mMyLocation = location;
+        updateMapToMyLocation();
+    }
+
+    @Override
+    public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
 
     }
 }

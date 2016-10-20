@@ -21,6 +21,7 @@ import java.lang.ref.WeakReference;
 /**
  * Created by DG on 19.10.2016.
  */
+@Deprecated
 public class LocationService extends ForegroundService implements LocationListener {
     private static final String TAG = LocationService.class.getSimpleName();
 
