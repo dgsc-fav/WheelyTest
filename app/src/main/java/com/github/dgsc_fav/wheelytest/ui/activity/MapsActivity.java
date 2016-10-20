@@ -1,8 +1,11 @@
 package com.github.dgsc_fav.wheelytest.ui.activity;
 
+import android.content.ComponentName;
 import android.content.Intent;
+import android.content.ServiceConnection;
 import android.location.Location;
 import android.os.Bundle;
+import android.os.IBinder;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v7.widget.Toolbar;
@@ -13,6 +16,8 @@ import android.widget.Toast;
 import com.github.dgsc_fav.wheelytest.R;
 import com.github.dgsc_fav.wheelytest.api.model.SimpleLocation;
 import com.github.dgsc_fav.wheelytest.service.LocationServiceConsts;
+import com.github.dgsc_fav.wheelytest.service.ServiceHelper;
+import com.github.dgsc_fav.wheelytest.service.SocketService;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.FusedLocationProviderApi;
@@ -33,7 +38,9 @@ import java.util.Observer;
 /**
  * Created by DG on 18.10.2016.
  */
-public class MapsActivity extends PermissionsActivity implements OnMapReadyCallback, Observer, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener {
+public class MapsActivity extends PermissionsActivity
+        implements OnMapReadyCallback, Observer, GoogleApiClient.ConnectionCallbacks,
+                           GoogleApiClient.OnConnectionFailedListener, LocationListener, SocketService.ISocketServiceConnectionListener{
 
     private Button                   mDisconnect;
     private View                     mInfo;
@@ -76,8 +83,10 @@ public class MapsActivity extends PermissionsActivity implements OnMapReadyCallb
 
         mFusedLocationProviderApi.removeLocationUpdates(mGoogleApiClient, this);
 
-        startActivity(new Intent(this, LoginActivity.class));
-        finish();
+        if(mIsBound) {
+            mService.disconnect();
+        }
+
     }
 
     @Override
@@ -154,12 +163,21 @@ public class MapsActivity extends PermissionsActivity implements OnMapReadyCallb
 
     @Override
     public void processWithPermissionsGranted() {
-        // Obtain the SupportMapFragment and get notified when the map is ready to be used.
+        // permissions есть
+
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(
                 R.id.map);
         mapFragment.getMapAsync(this);
 
         getLocation();
+        if(!ServiceHelper.isSocketServiceRunning(this)) {
+            // если сервис не запущен, то запускаем
+            startSocketService();
+            // и подключаемся. именно так, чтобы при unbindService он не останавливался
+            bindSocketService();
+        } else {
+            bindSocketService();
+        }
     }
 
     @Override
@@ -220,5 +238,73 @@ public class MapsActivity extends PermissionsActivity implements OnMapReadyCallb
     @Override
     public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
 
+    }
+
+    protected SocketService mService;
+    protected boolean       mIsBound;
+    protected final ServiceConnection mSocketServiceConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            mService = ((SocketService.MyBinder) service).getService();
+            mIsBound = true;
+            mService.setISocketServiceConnectionListener(MapsActivity.this);
+
+            if(mService.isConnected()) {
+                // если сокетное соединение есть
+
+            } else {
+                //
+                finish();
+            }
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            mService = null;
+            mIsBound = false;
+        }
+    };
+
+    private void startSocketService() {
+        startService(SocketService.getIntent(this));
+    }
+
+    private void bindSocketService() {
+        if(!mIsBound) {
+            bindService(SocketService.getIntent(this), mSocketServiceConnection, BIND_AUTO_CREATE);
+        }
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+
+        bindSocketService();
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+
+        if(mIsBound) {
+            unbindService(mSocketServiceConnection);
+        }
+    }
+
+    @Override
+    public void onSocketServiceConnected() {
+
+    }
+
+    @Override
+    public void onSocketServiceError(String error) {
+
+    }
+
+    @Override
+    public void onSocketServiceDisconnect(String msg, int reason) {
+
+        startActivity(new Intent(this, LoginActivity.class));
+        finish();
     }
 }

@@ -1,20 +1,26 @@
 package com.github.dgsc_fav.wheelytest.ui.activity;
 
+import android.content.ComponentName;
 import android.content.Intent;
+import android.content.ServiceConnection;
 import android.os.Bundle;
+import android.os.IBinder;
 import android.support.v7.widget.Toolbar;
 import android.text.TextUtils;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ProgressBar;
+import android.widget.Toast;
 
 import com.github.dgsc_fav.wheelytest.R;
+import com.github.dgsc_fav.wheelytest.service.ServiceHelper;
+import com.github.dgsc_fav.wheelytest.service.SocketService;
 
 /**
  * Created by DG on 19.10.2016.
  */
-public class LoginActivity extends PermissionsActivity {
+public class LoginActivity extends PermissionsActivity implements SocketService.ISocketServiceConnectionListener {
 
     private EditText    mUsername;
     private EditText    mPassword;
@@ -44,6 +50,8 @@ public class LoginActivity extends PermissionsActivity {
                 }
             }
         });
+
+        disableInputs();
 
         // проверка наличия сервисов google
         if(isServicesAvailable()) {
@@ -101,15 +109,53 @@ public class LoginActivity extends PermissionsActivity {
         disableInputs();
 
         // connect
+        final String username = mUsername.getText().toString();
+        final String password = mPassword.getText().toString();
 
-        // TODO: 19.10.2016 as successfull
+        if(mIsBound) {
+            mService.connect(username, password, this);
+        }
+
+        //ServiceHelper.ensureSocketService(this, username, password);
+
+        // надо ли?
+
+        //App.getTokenStore().setLastUsername(username);
+        //App.getTokenStore().setLastPassword(password);
+
+        // это уже если подключились к сервису
+        //switchToMap();
+    }
+
+    private void switchToMap() {
         startActivity(new Intent(this, MapsActivity.class));
         finish(); // не возвращаемся по назад из MapsActivity
     }
 
     @Override
     public void processWithPermissionsGranted() {
-        enableInputs();
+        // permissions есть
+        if(!ServiceHelper.isSocketServiceRunning(this)) {
+            // если сервис не запущен, то запускаем
+            startSocketService();
+            // и подключаемся. именно так, чтобы при unbindService он не останавливался
+            bindSocketService();
+        } else {
+            bindSocketService();
+        }
+
+
+//        // проверка, работает ли SocketService
+//        if(ServiceHelper.isSocketServiceRunning(this)) {
+//            // открываем карту
+//            //switchToMap();
+//
+//            bindSocketService();
+//
+//        } else {
+//            // обычный логин
+//            enableInputs();
+//        }
     }
 
     @Override
@@ -117,5 +163,80 @@ public class LoginActivity extends PermissionsActivity {
         finishWithDialog();
     }
 
+    protected SocketService mService;
+    protected boolean         mIsBound;
+    protected final ServiceConnection mSocketServiceConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            mService = ((SocketService.MyBinder) service).getService();
+            mIsBound = true;
+
+            if(mService.isConnected()) {
+                // если сокетное соединение есть, то переход на карту
+                switchToMap();
+            } else {
+                // иначе надо залогиниться
+                enableInputs();
+            }
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            mService = null;
+            mIsBound = false;
+        }
+    };
+
+    private void startSocketService() {
+        startService(SocketService.getIntent(this));
+    }
+
+    private void bindSocketService() {
+        if(!mIsBound) {
+            bindService(SocketService.getIntent(this),
+                        mSocketServiceConnection,
+                        BIND_AUTO_CREATE);
+        }
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+
+        bindSocketService();
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+
+        // если сервис отключил соединение вручную (не по ошибке)
+        // это когда нажали disconnect в MapsActivity
+        if(mIsBound && !mService.isConnected() && mService.getDisconnectReason() == SocketService.MANUAL) {
+            //mService.requestStopSelf();
+            stopService(SocketService.getIntent(this));
+        }
+        if(mIsBound) {
+            unbindService(mSocketServiceConnection);
+        }
+    }
+
+    @Override
+    public void onSocketServiceConnected() {
+        // если сокетное соединение есть, то переход на карту
+        switchToMap();
+    }
+
+    @Override
+    public void onSocketServiceError(String error) {
+        Toast.makeText(this, error, Toast.LENGTH_LONG).show();
+        enableInputs();
+    }
+
+    @Override
+    public void onSocketServiceDisconnect(String msg, int reason) {
+        Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
+        enableInputs();
+    }
 }
 

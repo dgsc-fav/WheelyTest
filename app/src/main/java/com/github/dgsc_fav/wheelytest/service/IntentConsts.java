@@ -9,6 +9,8 @@ public interface IntentConsts {
     String KEY_TITLE      = "title";
     String KEY_CONTENT    = "content";
     String KEY_ID         = "id";
+    String KEY_USERNAME   = "username";
+    String KEY_PASSWORD   = "password";
     String KEY_LOCATION   = "location";
-    String KEY_MARKERS   = "markers";
+    String KEY_MARKERS    = "markers";
 }

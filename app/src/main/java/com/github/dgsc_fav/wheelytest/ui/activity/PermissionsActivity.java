@@ -43,14 +43,14 @@ public abstract class PermissionsActivity extends AppCompatActivity {
                     this,
                     Manifest.permission.ACCESS_COARSE_LOCATION)) {
                 // Display UI and wait for user interaction
-                showMessageOKCancel(R.string.dialog_location_permission_message,
-                                    new DialogInterface.OnClickListener() {
+                showDialog(R.string.dialog_location_permission_message,
+                           new DialogInterface.OnClickListener() {
                                         @Override
                                         public void onClick(DialogInterface dialog, int which) {
                                             requestLocationPermission();
                                         }
                                     },
-                                    new DialogInterface.OnClickListener() {
+                           new DialogInterface.OnClickListener() {
                                         @Override
                                         public void onClick(DialogInterface dialog, int which) {
                                             processWithPermissionsDenied();
@@ -64,7 +64,7 @@ public abstract class PermissionsActivity extends AppCompatActivity {
         }
     }
 
-    public void showMessageOKCancel(int messageId, DialogInterface.OnClickListener okListener, DialogInterface.OnClickListener cancelListener) {
+    public void showDialog(int messageId, DialogInterface.OnClickListener okListener, DialogInterface.OnClickListener cancelListener) {
         AlertDialog.Builder alertDialog = new AlertDialog.Builder(this);
         alertDialog.setMessage(messageId);
         alertDialog.setPositiveButton(android.R.string.ok, okListener);
@@ -94,7 +94,7 @@ public abstract class PermissionsActivity extends AppCompatActivity {
     }
 
     protected void finishWithDialog() {
-        showMessageOKCancel(R.string.about_location_permissions_info, new DialogInterface.OnClickListener() {
+        showDialog(R.string.about_location_permissions_info, new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
                 finish();

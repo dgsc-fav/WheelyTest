@@ -47,8 +47,6 @@ public abstract class ForegroundService extends Service implements IntentConsts 
             sendNotification(mTicker, mTitle, mContent);
         }
 
-        serviceTask();
-
         // если в intent как foreground, то с перезапуском, иначе ждать, когда запустят "вручную"
         return mIsForeground ? START_REDELIVER_INTENT : START_NOT_STICKY;
     }
@@ -89,8 +87,6 @@ public abstract class ForegroundService extends Service implements IntentConsts 
         // останов сервиса
         stopSelf();
     }
-
-    protected abstract void serviceTask();
 
     public boolean addPendingIntent(PendingIntent pendingIntent) {
         return mPendingIntents.add(pendingIntent);
