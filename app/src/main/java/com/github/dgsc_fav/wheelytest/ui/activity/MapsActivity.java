@@ -83,8 +83,9 @@ public class MapsActivity extends BaseActivity implements OnMapReadyCallback, Ob
         if(mIsBound) {
             mService.stopSelf();
         }
-        // // TODO: 19.10.2016 в логин
-        onBackPressed();
+
+        startActivity(new Intent(this, LoginActivity.class));
+        finish();
     }
 
     @Override
@@ -194,5 +195,15 @@ public class MapsActivity extends BaseActivity implements OnMapReadyCallback, Ob
                 fillMarkers(markers);
             }
         }
+    }
+
+    @Override
+    public void processWithPermissionsGranted() {
+
+    }
+
+    @Override
+    public void processWithPermissionsDenied() {
+
     }
 }

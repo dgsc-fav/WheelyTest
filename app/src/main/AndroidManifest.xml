@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-          package="com.github.dgsc_fav.wheelytest">
+<manifest package="com.github.dgsc_fav.wheelytest"
+          xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!--
          The ACCESS_COARSE/FINE_LOCATION permissions are not required to use
@@ -30,7 +30,8 @@
             android:value="@string/google_maps_key"/>
 
         <activity
-            android:name=".ui.activity.LoginActivity">
+            android:name=".ui.activity.LoginActivity"
+            android:launchMode="singleTask">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
 
@@ -39,7 +40,8 @@
         </activity>
 
         <activity
-            android:name=".ui.activity.MapsActivity">
+            android:name=".ui.activity.MapsActivity"
+            android:launchMode="singleTask">
 
         </activity>
 

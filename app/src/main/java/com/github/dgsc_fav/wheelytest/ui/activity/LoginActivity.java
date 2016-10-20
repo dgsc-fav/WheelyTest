@@ -1,5 +1,6 @@
 package com.github.dgsc_fav.wheelytest.ui.activity;
 
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.os.Bundle;
 import android.support.v7.widget.Toolbar;
@@ -14,7 +15,7 @@ import com.github.dgsc_fav.wheelytest.R;
 /**
  * Created by DG on 19.10.2016.
  */
-public class LoginActivity extends BaseActivity {
+public class LoginActivity extends PermissionsActivity {
 
     private EditText    mUsername;
     private EditText    mPassword;
@@ -45,7 +46,8 @@ public class LoginActivity extends BaseActivity {
             }
         });
 
-        enableInputs();
+        // проверка наличия permissions
+        checkLocationServicePermissions();
     }
 
     private void enableInputs() {
@@ -64,7 +66,10 @@ public class LoginActivity extends BaseActivity {
 
     public boolean isUsernameAccept() {
         boolean usernameAccept = false;
-        String username = mUsername.getText().toString().trim();
+        String username = mUsername
+                                  .getText()
+                                  .toString()
+                                  .trim();
         if(TextUtils.isEmpty(username)) {
             mUsername.requestFocus();
             mUsername.setError(getString(R.string.username_error));
@@ -76,7 +81,10 @@ public class LoginActivity extends BaseActivity {
 
     public boolean isPasswordAccepted() {
         boolean passwordAccepted = false;
-        String password = mPassword.getText().toString().trim();
+        String password = mPassword
+                                  .getText()
+                                  .toString()
+                                  .trim();
         if(TextUtils.isEmpty(password)) {
             mPassword.requestFocus();
             mPassword.setError(getString(R.string.password_error));
@@ -95,6 +103,21 @@ public class LoginActivity extends BaseActivity {
         // TODO: 19.10.2016 as successfull
         startActivity(new Intent(this, MapsActivity.class));
         finish(); // не возвращаемся по назад из MapsActivity
+    }
+
+    @Override
+    public void processWithPermissionsGranted() {
+        enableInputs();
+    }
+
+    @Override
+    public void processWithPermissionsDenied() {
+        showMessageOKCancel(R.string.about_location_permissions_info, new DialogInterface.OnClickListener() {
+            @Override
+            public void onClick(DialogInterface dialog, int which) {
+                finish();
+            }
+        }, null);
     }
 }
 

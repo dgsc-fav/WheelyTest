@@ -10,4 +10,6 @@
     <string name="password_error">Need enter a password</string>
     <string name="permission_location_denied">Access to location service is denied</string>
     <string name="dialog_location_permission_message">Please allow access to location service</string>
+    <string name="about_location_permissions_info">Application must have permissions access to location</string>
+    <string name="settings">Settings</string>
 </resources>
