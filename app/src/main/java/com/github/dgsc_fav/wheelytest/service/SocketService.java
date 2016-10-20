@@ -3,11 +3,21 @@ package com.github.dgsc_fav.wheelytest.service;
 
 import android.content.Context;
 import android.content.Intent;
+import android.location.Location;
 import android.os.Binder;
+import android.os.Bundle;
 import android.os.IBinder;
+import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.text.TextUtils;
 import android.util.Log;
+
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.location.FusedLocationProviderApi;
+import com.google.android.gms.location.LocationListener;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationServices;
 
 import java.lang.ref.WeakReference;
 import java.util.List;
@@ -17,12 +27,8 @@ import java.util.TimerTask;
 /**
  * Created by DG on 19.10.2016.
  */
-public class SocketService extends ForegroundService {
+public class SocketService extends ForegroundService implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener {
     private static final String TAG = SocketService.class.getSimpleName();
-
-    public void requestStopSelf() {
-
-    }
 
     public interface ISocketServiceConnectionListener {
         void onSocketServiceConnected();
@@ -41,10 +47,14 @@ public class SocketService extends ForegroundService {
     @Deprecated
     private String mInstanceId;// только для теста
 
-    String mUsername;
-    String mPassword;
-    private boolean connected;
-    ISocketServiceConnectionListener mConnectionListener;
+    private LocationRequest                  mLocationRequest;
+    private FusedLocationProviderApi         mFusedLocationProviderApi;
+    private GoogleApiClient                  mGoogleApiClient;
+    private String                           mUsername;
+    private String                           mPassword;
+    private Location                         mLastLocation;
+    private boolean                          mIsConnected;
+    private ISocketServiceConnectionListener mConnectionListener;
 
     public static Intent getIntent(Context context/*, String username, String password*/) {
         Intent intent = new Intent(context, SocketService.class);
@@ -68,6 +78,8 @@ public class SocketService extends ForegroundService {
     public void onCreate() {
         super.onCreate();
         mInstanceId = Long.toHexString(System.currentTimeMillis());
+
+        startHandleLocation();
     }
 
     @Override
@@ -97,7 +109,7 @@ public class SocketService extends ForegroundService {
             @Override
             public void run() {
                 Log.i(TAG,
-                      mInstanceId + ": " + mServiceStartId + " ***RUNNING*** " + connected + ":" + mUsername + "|" + mPassword);
+                      mInstanceId + ": " + mServiceStartId + " ***RUNNING*** " + mIsConnected + ":" + mUsername + "|" + mPassword);
             }
         };
         timer = new Timer();
@@ -127,6 +139,10 @@ public class SocketService extends ForegroundService {
 
         stopServiceTask();
 
+        if(mGoogleApiClient.isConnected()) {
+            mGoogleApiClient.disconnect();
+        }
+
         Log.e(TAG, mInstanceId + ": " + mServiceStartId + " ***Oops, destroyed***");
     }
 
@@ -139,7 +155,7 @@ public class SocketService extends ForegroundService {
     private boolean requestDisconnect;
 
     public boolean isConnected() {
-        return connected;
+        return mIsConnected;
     }
 
     public void connect(String username, String password, ISocketServiceConnectionListener iSocketServiceConnectionListener) {
@@ -149,17 +165,25 @@ public class SocketService extends ForegroundService {
 
         // blah-blah-blah
 
-        connected = !TextUtils.isEmpty(mUsername) && !TextUtils.isEmpty(mPassword);
+//        try {
+//            WebSocket ws = new WebSocketFactory().createSocket("ws://mini-mdt.wheely.com");
+//            ws.connect()
+//
+//        } catch(IOException e) {
+//            e.printStackTrace();
+//        }
+
+        mIsConnected = !TextUtils.isEmpty(mUsername) && !TextUtils.isEmpty(mPassword);
         requestDisconnect = false;
 
-        if(connected) {
+        if(mIsConnected) {
             serviceTask();
         } else {
             stopServiceTask();
         }
 
         if(mConnectionListener != null) {
-            if(connected) {
+            if(mIsConnected) {
                 mConnectionListener.onSocketServiceConnected();
             } else {
                 mConnectionListener.onSocketServiceError("bad credientals");
@@ -176,9 +200,9 @@ public class SocketService extends ForegroundService {
 
 
         // blah-blah-blah
-        connected = false;
+        mIsConnected = false;
 
-        if(connected) {
+        if(mIsConnected) {
             serviceTask();
         } else {
             stopServiceTask();
@@ -191,6 +215,48 @@ public class SocketService extends ForegroundService {
 
     public int getDisconnectReason() {
         return requestDisconnect ? MANUAL : ON_ERROR;
+    }
+
+    private void startHandleLocation() {
+        mLocationRequest = LocationRequest.create();
+        mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        mLocationRequest.setInterval(LocationServiceConsts.POLLING_FREQ);
+        mLocationRequest.setFastestInterval(LocationServiceConsts.FASTEST_UPDATE_FREQ);
+
+        mFusedLocationProviderApi = LocationServices.FusedLocationApi;
+
+        mGoogleApiClient = new GoogleApiClient.Builder(this)
+                                   .addApi(LocationServices.API)
+                                   .addConnectionCallbacks(this)
+                                   .addOnConnectionFailedListener(this)
+                                   .build();
+        mGoogleApiClient.connect();
+    }
+
+    @Override
+    public void onConnected(Bundle arg0) {
+        //noinspection ResourceType
+        mFusedLocationProviderApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, this);
+    }
+
+    @Override
+    public void onConnectionSuspended(int i) {
+
+    }
+
+    @Override
+    public void onLocationChanged(Location location) {
+        mLastLocation = location;
+        Log.w(TAG, mInstanceId + ": " + mServiceStartId + " onLocationChanged:" + mLastLocation);
+
+        if(mIsConnected) {
+            // send
+        }
+    }
+
+    @Override
+    public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
+
     }
 
     public static class MyBinder extends Binder {

@@ -38,10 +38,32 @@ import java.util.Observer;
 /**
  * Created by DG on 18.10.2016.
  */
-public class MapsActivity extends PermissionsActivity
-        implements OnMapReadyCallback, Observer, GoogleApiClient.ConnectionCallbacks,
-                           GoogleApiClient.OnConnectionFailedListener, LocationListener, SocketService.ISocketServiceConnectionListener{
+public class MapsActivity extends PermissionsActivity implements OnMapReadyCallback, Observer, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener, SocketService.ISocketServiceConnectionListener {
 
+    protected final ServiceConnection mSocketServiceConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            mService = ((SocketService.MyBinder) service).getService();
+            mIsBound = true;
+            mService.setISocketServiceConnectionListener(MapsActivity.this);
+
+            if(mService.isConnected()) {
+                // если сокетное соединение есть
+
+            } else {
+                //
+                finish();
+            }
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            mService = null;
+            mIsBound = false;
+        }
+    };
+    private SocketService            mService;
+    private boolean                  mIsBound;
     private Button                   mDisconnect;
     private View                     mInfo;
     private List<SimpleLocation>     mLocations;
@@ -212,10 +234,10 @@ public class MapsActivity extends PermissionsActivity
         mFusedLocationProviderApi = LocationServices.FusedLocationApi;
 
         mGoogleApiClient = new GoogleApiClient.Builder(this)
-                                  .addApi(LocationServices.API)
-                                  .addConnectionCallbacks(this)
-                                  .addOnConnectionFailedListener(this)
-                                  .build();
+                                   .addApi(LocationServices.API)
+                                   .addConnectionCallbacks(this)
+                                   .addOnConnectionFailedListener(this)
+                                   .build();
     }
 
     @Override
@@ -239,31 +261,6 @@ public class MapsActivity extends PermissionsActivity
     public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
 
     }
-
-    protected SocketService mService;
-    protected boolean       mIsBound;
-    protected final ServiceConnection mSocketServiceConnection = new ServiceConnection() {
-        @Override
-        public void onServiceConnected(ComponentName name, IBinder service) {
-            mService = ((SocketService.MyBinder) service).getService();
-            mIsBound = true;
-            mService.setISocketServiceConnectionListener(MapsActivity.this);
-
-            if(mService.isConnected()) {
-                // если сокетное соединение есть
-
-            } else {
-                //
-                finish();
-            }
-        }
-
-        @Override
-        public void onServiceDisconnected(ComponentName name) {
-            mService = null;
-            mIsBound = false;
-        }
-    };
 
     private void startSocketService() {
         startService(SocketService.getIntent(this));
