@@ -8,7 +8,10 @@ import android.content.Intent;
 import android.support.v7.app.NotificationCompat;
 
 import com.github.dgsc_fav.wheelytest.R;
-import com.github.dgsc_fav.wheelytest.ui.activity.LoginActivity;
+import com.github.dgsc_fav.wheelytest.ui.activity.MapsActivity;
+
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Created by DG on 19.10.2016.
@@ -19,6 +22,8 @@ public abstract class ForegroundService extends Service implements IntentConsts 
 
     private NotificationManager mNotificationManager;
     private int                 mNotificationId;
+    // через них будем передавать информацию клиентам сервиса
+    protected Set<PendingIntent> mPendingIntents = new HashSet<>();
 
     @Override
     public void onCreate() {
@@ -48,26 +53,20 @@ public abstract class ForegroundService extends Service implements IntentConsts 
         return mIsForeground ? START_REDELIVER_INTENT : START_NOT_STICKY;
     }
 
-    protected abstract void serviceTask();
-
     protected void sendNotification(String ticker, String title, String text) {
-        Intent notificationIntent = new Intent(this, LoginActivity.class);
+        Intent notificationIntent = new Intent(this, MapsActivity.class);
         notificationIntent.setAction(Intent.ACTION_MAIN);
         notificationIntent.addCategory(Intent.CATEGORY_LAUNCHER);
 
-        PendingIntent contentIntent = PendingIntent.getActivity(getApplicationContext(), 0,
+        PendingIntent contentIntent = PendingIntent.getActivity(getApplicationContext(),
+                                                                0,
                                                                 notificationIntent,
                                                                 PendingIntent.FLAG_UPDATE_CURRENT);
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this);
-        builder.setContentIntent(contentIntent)
-               .setOngoing(true)
-               .setAutoCancel(false)
-               .setSmallIcon(R.mipmap.ic_launcher)
-               .setTicker(ticker)
-               .setContentTitle(title)
-               .setContentText(text)
-               .setWhen(System.currentTimeMillis());
+        builder.setContentIntent(contentIntent).setOngoing(true).setAutoCancel(false)
+               .setSmallIcon(R.mipmap.ic_launcher).setTicker(ticker).setContentTitle(title)
+               .setContentText(text).setWhen(System.currentTimeMillis());
 
         Notification notification;
         if(android.os.Build.VERSION.SDK_INT <= 15) {
@@ -89,5 +88,15 @@ public abstract class ForegroundService extends Service implements IntentConsts 
 
         // останов сервиса
         stopSelf();
+    }
+
+    protected abstract void serviceTask();
+
+    public boolean addPendingIntent(PendingIntent pendingIntent) {
+        return mPendingIntents.add(pendingIntent);
+    }
+
+    public boolean removePendingIntent(PendingIntent pendingIntent) {
+        return mPendingIntents.remove(pendingIntent);
     }
 }

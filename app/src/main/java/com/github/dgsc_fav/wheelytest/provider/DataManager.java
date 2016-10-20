@@ -7,6 +7,7 @@ import java.util.Observable;
 /**
  * Created by DG on 19.10.2016.
  */
+@Deprecated
 public final class DataManager extends Observable {
 
     private static volatile DataManager sInstance;

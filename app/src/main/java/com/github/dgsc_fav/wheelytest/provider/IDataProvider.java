@@ -9,6 +9,7 @@ import java.util.List;
 /**
  * Created by DG on 19.10.2016.
  */
+@Deprecated
 public interface IDataProvider {
     List<SimpleLocation> getSimpleLocations();
 
