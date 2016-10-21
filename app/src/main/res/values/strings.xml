@@ -12,4 +12,6 @@
     <string name="dialog_location_permission_message">Please allow access to location service</string>
     <string name="about_location_permissions_info">Application must have permissions access to location</string>
     <string name="settings">Settings</string>
+    <string name="waiting_satellites">Waiting satellites</string>
+    <string name="waiting_network">Waiting network</string>
 </resources>

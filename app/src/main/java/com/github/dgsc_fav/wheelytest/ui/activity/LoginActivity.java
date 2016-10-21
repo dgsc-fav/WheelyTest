@@ -16,19 +16,19 @@ import android.widget.Toast;
 import com.github.dgsc_fav.wheelytest.R;
 import com.github.dgsc_fav.wheelytest.service.ServiceHelper;
 import com.github.dgsc_fav.wheelytest.service.SocketService;
+import com.github.dgsc_fav.wheelytest.ws.WebSocketClient;
 
 /**
  * Created by DG on 19.10.2016.
  */
-public class LoginActivity extends PermissionsActivity implements SocketService.ISocketServiceConnectionListener, SocketService.IMessageListener {
+public class LoginActivity extends PermissionsActivity implements WebSocketClient.ISocketServiceConnectionListener, WebSocketClient.IMessageListener {
 
     private final ServiceConnection mSocketServiceConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
             mService = ((SocketService.MyBinder) service).getService();
-            mIsBound = true;
 
-            if(mService.isConnected()) {
+            if(mService.getWebSocketClient().isConnected()) {
                 // если сокетное соединение есть, то переход на карту
                 switchToMap();
             } else {
@@ -40,7 +40,6 @@ public class LoginActivity extends PermissionsActivity implements SocketService.
         @Override
         public void onServiceDisconnected(ComponentName name) {
             mService = null;
-            mIsBound = false;
         }
     };
     private SocketService mService;
@@ -130,7 +129,7 @@ public class LoginActivity extends PermissionsActivity implements SocketService.
         final String password = mPassword.getText().toString();
 
         if(mIsBound) {
-            mService.connect(username, password, this, this);
+            mService.getWebSocketClient().connect(username, password, this, this);
         }
     }
 
@@ -164,6 +163,7 @@ public class LoginActivity extends PermissionsActivity implements SocketService.
     private void bindSocketService() {
         if(!mIsBound) {
             bindService(SocketService.getIntent(this), mSocketServiceConnection, BIND_AUTO_CREATE);
+            mIsBound = true;
         }
     }
 
@@ -180,30 +180,50 @@ public class LoginActivity extends PermissionsActivity implements SocketService.
 
         // если сервис отключил соединение вручную (не по ошибке)
         // это когда нажали disconnect в MapsActivity
-        if(mIsBound && !mService.isConnected() && mService.getDisconnectReason() == SocketService.MANUAL) {
-            stopService(SocketService.getIntent(this));
-        }
-        if(mIsBound) {
+        if(mIsBound && !mService.getWebSocketClient().isConnected() && mService
+                                                                               .getWebSocketClient()
+                                                                               .getDisconnectReason() == SocketService.MANUAL) {
             unbindService(mSocketServiceConnection);
+            mIsBound = false;
+            stopService(SocketService.getIntent(this));
+        } else if(mIsBound) {
+            // иначе, просто отсоединяемся
+            unbindService(mSocketServiceConnection);
+            mIsBound = false;
         }
     }
 
     @Override
     public void onSocketServiceConnected() {
         // если сокетное соединение есть, то переход на карту
-        switchToMap();
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                switchToMap();
+            }
+        });
     }
 
     @Override
-    public void onSocketServiceError(String error) {
-        Toast.makeText(this, error, Toast.LENGTH_LONG).show();
-        enableInputs();
+    public void onSocketServiceError(final Throwable throwable) {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                Toast.makeText(LoginActivity.this, throwable.getLocalizedMessage(), Toast.LENGTH_LONG).show();
+                enableInputs();
+            }
+        });
     }
 
     @Override
-    public void onSocketServiceDisconnect(String msg, int reason) {
-        Toast.makeText(this, msg, Toast.LENGTH_LONG).show();
-        enableInputs();
+    public void onSocketServiceDisconnect(final String msg, int reason) {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                Toast.makeText(LoginActivity.this, msg, Toast.LENGTH_LONG).show();
+                enableInputs();
+            }
+        });
     }
 
     @Override

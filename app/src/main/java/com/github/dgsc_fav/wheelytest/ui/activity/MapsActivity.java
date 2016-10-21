@@ -1,13 +1,18 @@
 package com.github.dgsc_fav.wheelytest.ui.activity;
 
+import android.content.BroadcastReceiver;
 import android.content.ComponentName;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.location.Location;
+import android.net.ConnectivityManager;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
+import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.widget.Toolbar;
 import android.view.View;
 import android.widget.Button;
@@ -19,6 +24,8 @@ import com.github.dgsc_fav.wheelytest.service.LocationServiceConsts;
 import com.github.dgsc_fav.wheelytest.service.ServiceHelper;
 import com.github.dgsc_fav.wheelytest.service.SocketService;
 import com.github.dgsc_fav.wheelytest.util.LocationUtils;
+import com.github.dgsc_fav.wheelytest.util.NetUtils;
+import com.github.dgsc_fav.wheelytest.ws.WebSocketClient;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.FusedLocationProviderApi;
@@ -39,27 +46,31 @@ import com.google.gson.reflect.TypeToken;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Observable;
-import java.util.Observer;
 
 /**
  * Created by DG on 18.10.2016.
  */
-public class MapsActivity extends PermissionsActivity implements OnMapReadyCallback, Observer, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener, SocketService.ISocketServiceConnectionListener, SocketService.IMessageListener {
+public class MapsActivity extends PermissionsActivity implements OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener, WebSocketClient.ISocketServiceConnectionListener, WebSocketClient.IMessageListener {
 
-    protected final ServiceConnection mSocketServiceConnection = new ServiceConnection() {
+    private final IntentFilter      mIntentFilter            = new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION);
+    private final BroadcastReceiver mBroadcastReceiver       = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            updateWaitingNetworkInfo(context);
+        }
+    };
+    private final ServiceConnection mSocketServiceConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
             mService = ((SocketService.MyBinder) service).getService();
-            mIsBound = true;
-            mService.setISocketServiceConnectionListener(MapsActivity.this);
-            mService.setIMessageListener(MapsActivity.this);
 
-            if(mService.isConnecting() || mService.isConnected()) {
-                // если сокетное соединение есть
+            // зарегистрируемся слушателями WebSocketClient
+            WebSocketClient mWebSocketClient = mService.getWebSocketClient();
+            mWebSocketClient.setSocketServiceConnectionListener(MapsActivity.this);
+            mWebSocketClient.setMessageListener(MapsActivity.this);
 
-            } else {
-                //
+            if(!mWebSocketClient.isConnecting() && !mWebSocketClient.isConnected()) {
+                // если соединения нет, то закрываем activity
                 finish();
             }
         }
@@ -67,14 +78,13 @@ public class MapsActivity extends PermissionsActivity implements OnMapReadyCallb
         @Override
         public void onServiceDisconnected(ComponentName name) {
             mService = null;
-            mIsBound = false;
         }
     };
     private SocketService            mService;
     private boolean                  mIsBound;
     private Button                   mDisconnect;
-    private View                     mInfo;
-    private List<IdentifableLocation>     mLocations;
+    private View                     mWaitingSatellitesInfo;
+    private View                     mWaitingNetworkInfo;
     private Location                 mMyLocation;
     private GoogleMap                mMap;
     private LocationRequest          mLocationRequest;
@@ -101,9 +111,10 @@ public class MapsActivity extends PermissionsActivity implements OnMapReadyCallb
             }
         });
 
-        mInfo = findViewById(R.id.textinfo);
+        mWaitingSatellitesInfo = findViewById(R.id.waiting_satellites);
+        mWaitingNetworkInfo = findViewById(R.id.waiting_network);
 
-        showSatelliteSearchInfo();
+        showWaitingSatellitesInfo();
 
         checkLocationServicePermissions();
     }
@@ -111,10 +122,12 @@ public class MapsActivity extends PermissionsActivity implements OnMapReadyCallb
     private void doDisconnect() {
         Toast.makeText(this, getString(R.string.disconnect_button_text), Toast.LENGTH_SHORT).show();
 
+        mDisconnect.setEnabled(false);
+
         mFusedLocationProviderApi.removeLocationUpdates(mGoogleApiClient, this);
 
         if(mIsBound) {
-            mService.disconnect();
+            mService.getWebSocketClient().disconnect();
         }
     }
 
@@ -135,58 +148,45 @@ public class MapsActivity extends PermissionsActivity implements OnMapReadyCallb
 
         mMap = googleMap;
 
-        fillMarkers(mLocations);
-
         // сперва зум, потом координаты, иначе промахнётся
         mMap.moveCamera(CameraUpdateFactory.zoomTo(zoomFactory));
-
-        updateMapToMyLocation();
 
         //noinspection ResourceType
         mMap.setMyLocationEnabled(true);
     }
 
     private void updateMapToMyLocation() {
-        if(mMyLocation != null) {
+        if(mMap != null && mMyLocation != null) {
             mMap.animateCamera(CameraUpdateFactory.newLatLng(new LatLng(mMyLocation.getLatitude(),
                                                                         mMyLocation.getLongitude())));
-            hideSatelliteSearchInfo();
+            hideWaitingSatellitesInfo();
         } else {
-            showSatelliteSearchInfo();
+            showWaitingSatellitesInfo();
         }
     }
 
-    private void fillMarkers(@Nullable List<IdentifableLocation> locations) {
-        mMap.clear();
-
-        if(locations == null) {
-            return;
-        }
-
-        for(int i = 0; i < locations.size(); i++) {
-            IdentifableLocation identifableLocation = locations.get(i);
-            // Add a marker in M and move the camera
-            LatLng m = new LatLng(identifableLocation.getLatitude(), identifableLocation.getLongitude());
-
-            mMap.addMarker(new MarkerOptions()
-                                   .position(m)
-                                   .title(String.valueOf(identifableLocation.getId())));
-        }
+    private void showWaitingSatellitesInfo() {
+        mWaitingSatellitesInfo.setVisibility(View.VISIBLE);
     }
 
-    private void showSatelliteSearchInfo() {
-        mInfo.setVisibility(View.VISIBLE);
+    private void hideWaitingSatellitesInfo() {
+        mWaitingSatellitesInfo.setVisibility(View.GONE);
     }
 
-    private void hideSatelliteSearchInfo() {
-        mInfo.setVisibility(View.GONE);
+    private void showWaitingNetworkInfo() {
+        mWaitingNetworkInfo.setVisibility(View.VISIBLE);
     }
 
-    @Override
-    @Deprecated
-    public void update(Observable o, Object arg) {
-        if(arg instanceof List) {
-            fillMarkers((List<IdentifableLocation>) arg);
+    private void hideWaitingNetworkInfo() {
+        mWaitingNetworkInfo.setVisibility(View.GONE);
+    }
+
+    private void updateWaitingNetworkInfo(Context context) {
+        boolean isNetworkAvailable = NetUtils.isNetworkAvailable(context);
+        if(isNetworkAvailable) {
+            hideWaitingNetworkInfo();
+        } else {
+            showWaitingNetworkInfo();
         }
     }
 
@@ -221,6 +221,11 @@ public class MapsActivity extends PermissionsActivity implements OnMapReadyCallb
         if(mGoogleApiClient != null && !mGoogleApiClient.isConnected()) {
             mGoogleApiClient.connect();
         }
+
+        updateWaitingNetworkInfo(this);
+
+        // подпишемся на сообщения о смени статуса сети
+        LocalBroadcastManager.getInstance(this).registerReceiver(mBroadcastReceiver, mIntentFilter);
     }
 
     @Override
@@ -230,6 +235,9 @@ public class MapsActivity extends PermissionsActivity implements OnMapReadyCallb
         if(mGoogleApiClient != null && mGoogleApiClient.isConnected()) {
             mGoogleApiClient.disconnect();
         }
+
+        // подпишемся на сообщения о смени статуса сети
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(mBroadcastReceiver);
     }
 
     private void getLocation() {
@@ -276,6 +284,7 @@ public class MapsActivity extends PermissionsActivity implements OnMapReadyCallb
     private void bindSocketService() {
         if(!mIsBound) {
             bindService(SocketService.getIntent(this), mSocketServiceConnection, BIND_AUTO_CREATE);
+            mIsBound = true;
         }
     }
 
@@ -292,6 +301,7 @@ public class MapsActivity extends PermissionsActivity implements OnMapReadyCallb
 
         if(mIsBound) {
             unbindService(mSocketServiceConnection);
+            mIsBound = false;
         }
     }
 
@@ -301,19 +311,33 @@ public class MapsActivity extends PermissionsActivity implements OnMapReadyCallb
     }
 
     @Override
-    public void onSocketServiceError(String error) {
-
+    public void onSocketServiceError(final Throwable throwable) {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                Toast.makeText(MapsActivity.this,
+                               throwable.getLocalizedMessage(),
+                               Toast.LENGTH_LONG).show();
+            }
+        });
     }
 
     @Override
     public void onSocketServiceDisconnect(String msg, int reason) {
-
-        startActivity(new Intent(this, LoginActivity.class));
-        finish();
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                startActivity(new Intent(MapsActivity.this, LoginActivity.class));
+                finish();
+            }
+        });
     }
 
     @Override
     public void onMessage(String msg) {
+        if(mMap == null) {
+            return;
+        }
         Type listType = new TypeToken<ArrayList<IdentifableLocation>>() {
         }.getType();
         GsonBuilder builder = new GsonBuilder();
@@ -329,10 +353,28 @@ public class MapsActivity extends PermissionsActivity implements OnMapReadyCallb
 
     }
 
-    // // TODO: 20.10.2016 добавить кнопочку на экран, рядом с кнопочкой Где я
-    // и пусть fillMarker bounds вычисляет
+    private void fillMarkers(@Nullable List<IdentifableLocation> locations) {
+        mMap.clear();
+
+        if(locations == null) {
+            return;
+        }
+
+        for(int i = 0; i < locations.size(); i++) {
+            IdentifableLocation identifableLocation = locations.get(i);
+            // Add a marker in M and move the camera
+            LatLng m = new LatLng(identifableLocation.getLatitude(),
+                                  identifableLocation.getLongitude());
+
+            mMap.addMarker(new MarkerOptions()
+                                   .position(m)
+                                   .title(String.valueOf(identifableLocation.getId())));
+        }
+    }
+
     /**
-     * Наверное, надо сделать так, чтобы маркеры были видны на экране
+     * Чтобы маркеры были видны на экране
+     *
      * @param identifableLocations
      */
     private void updateCameraPosition(@Nullable final List<IdentifableLocation> identifableLocations) {
@@ -345,10 +387,12 @@ public class MapsActivity extends PermissionsActivity implements OnMapReadyCallb
         double maxLat = LocationUtils.getMaxLat(identifableLocations);
         double maxLon = LocationUtils.getMaxLon(identifableLocations);
 
-        LatLngBounds latLngBounds = new LatLngBounds(new LatLng(minLat, minLon), new LatLng(maxLat,
-                                                                                         maxLon));
-        // Set the camera to the greatest possible zoom level that includes the
-        // bounds
-        mMap.animateCamera(CameraUpdateFactory.newLatLngBounds(latLngBounds, getResources().getDimensionPixelSize(R.dimen.map_bounds_padding)));
+        LatLngBounds latLngBounds = new LatLngBounds(new LatLng(minLat, minLon),
+                                                     new LatLng(maxLat, maxLon));
+
+        // Set the camera to the greatest possible zoom level that includes the bounds
+        mMap.animateCamera(CameraUpdateFactory.newLatLngBounds(latLngBounds,
+                                                               getResources().getDimensionPixelSize(
+                                                                       R.dimen.map_bounds_padding)));
     }
 }

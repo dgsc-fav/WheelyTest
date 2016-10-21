@@ -4,6 +4,7 @@ import android.os.Parcel;
 import android.os.Parcelable;
 
 import com.github.dgsc_fav.wheelytest.api.Consts;
+import com.google.gson.Gson;
 import com.google.gson.annotations.SerializedName;
 
 /**
@@ -62,5 +63,9 @@ public class SimpleLocation implements Parcelable, Consts {
     public void writeToParcel(Parcel dest, int flags) {
         dest.writeDouble(latitude);
         dest.writeDouble(longitude);
+    }
+
+    public String toJson() {
+        return new Gson().toJson(this);
     }
 }

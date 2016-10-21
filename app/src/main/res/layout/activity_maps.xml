@@ -26,12 +26,28 @@
         tools:context="com.github.dgsc_fav.wheelytest.ui.activity.MapsActivity"/>
 
     <TextView
-        android:id="@+id/textinfo"
-        android:textColor="@android:color/black"
+        android:id="@+id/waiting_satellites"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="WAITING FOR SATELLTES"
-        android:layout_below="@id/app_bar_layout"/>
+        android:layout_below="@id/app_bar_layout"
+        android:layout_toEndOf="@+id/waiting_network"
+        android:layout_toRightOf="@+id/waiting_network"
+        android:background="@color/colorInfo"
+        android:padding="@dimen/activity_horizontal_margin"
+        android:text="@string/waiting_satellites"
+        android:textColor="@android:color/white"/>
+
+    <TextView
+        android:id="@+id/waiting_network"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/app_bar_layout"
+        android:layout_marginEnd="8dp"
+        android:layout_marginRight="8dp"
+        android:background="@color/colorInfo"
+        android:padding="@dimen/activity_horizontal_margin"
+        android:text="@string/waiting_network"
+        android:textColor="@android:color/white"/>
 
     <android.support.v7.widget.ButtonBarLayout
         android:id="@+id/button_bar_layout"
