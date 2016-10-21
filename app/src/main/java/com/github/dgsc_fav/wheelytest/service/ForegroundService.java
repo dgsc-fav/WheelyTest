@@ -10,10 +10,8 @@ import android.support.v7.app.NotificationCompat;
 import com.github.dgsc_fav.wheelytest.R;
 import com.github.dgsc_fav.wheelytest.ui.activity.MapsActivity;
 
-import java.util.HashSet;
-import java.util.Set;
-
 /**
+ * Делает Service foreground, вызывая показ уведомления в статус баре
  * Created by DG on 19.10.2016.
  */
 public abstract class ForegroundService extends Service implements IntentConsts {
@@ -22,8 +20,6 @@ public abstract class ForegroundService extends Service implements IntentConsts 
 
     private NotificationManager mNotificationManager;
     private int                 mNotificationId;
-    // через них будем передавать информацию клиентам сервиса
-    protected Set<PendingIntent> mPendingIntents = new HashSet<>();
 
     @Override
     public void onCreate() {
@@ -86,13 +82,5 @@ public abstract class ForegroundService extends Service implements IntentConsts 
 
         // останов сервиса
         stopSelf();
-    }
-
-    public boolean addPendingIntent(PendingIntent pendingIntent) {
-        return mPendingIntents.add(pendingIntent);
-    }
-
-    public boolean removePendingIntent(PendingIntent pendingIntent) {
-        return mPendingIntents.remove(pendingIntent);
     }
 }

@@ -2,7 +2,7 @@ package com.github.dgsc_fav.wheelytest.ws;
 
 import android.text.TextUtils;
 
-import com.github.dgsc_fav.wheelytest.api.Consts;
+import com.github.dgsc_fav.wheelytest.api.ApiConsts;
 import com.github.dgsc_fav.wheelytest.exception.BadCredientalsException;
 import com.neovisionaries.ws.client.OpeningHandshakeException;
 import com.neovisionaries.ws.client.WebSocket;
@@ -26,7 +26,7 @@ import static com.github.dgsc_fav.wheelytest.service.SocketService.ON_ERROR;
 /**
  * Created by DG on 21.10.2016.
  */
-public class WebSocketClient implements Consts {
+public class WebSocketClient implements ApiConsts {
 
     /**
      * Listener соединения с сокетом

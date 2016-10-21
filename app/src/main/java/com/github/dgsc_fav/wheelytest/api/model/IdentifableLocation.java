@@ -3,13 +3,13 @@ package com.github.dgsc_fav.wheelytest.api.model;
 import android.os.Parcel;
 import android.os.Parcelable;
 
-import com.github.dgsc_fav.wheelytest.api.Consts;
+import com.github.dgsc_fav.wheelytest.api.ApiConsts;
 import com.google.gson.annotations.SerializedName;
 
 /**
  * Created by DG on 19.10.2016.
  */
-public class IdentifableLocation extends SimpleLocation implements Parcelable, Consts {
+public class IdentifableLocation extends SimpleLocation implements Parcelable, ApiConsts {
     @SerializedName(ID)
     protected int   id;
 

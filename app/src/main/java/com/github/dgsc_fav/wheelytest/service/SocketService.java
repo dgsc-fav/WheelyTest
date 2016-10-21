@@ -14,7 +14,7 @@ import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.content.LocalBroadcastManager;
 
-import com.github.dgsc_fav.wheelytest.api.Consts;
+import com.github.dgsc_fav.wheelytest.api.ApiConsts;
 import com.github.dgsc_fav.wheelytest.api.model.SimpleLocation;
 import com.github.dgsc_fav.wheelytest.util.NetUtils;
 import com.github.dgsc_fav.wheelytest.ws.WebSocketClient;
@@ -30,7 +30,7 @@ import java.lang.ref.WeakReference;
 /**
  * Created by DG on 19.10.2016.
  */
-public class SocketService extends ForegroundService implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener, Consts {
+public class SocketService extends ForegroundService implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener, ApiConsts {
 
 
     public static final int MANUAL   = 0;

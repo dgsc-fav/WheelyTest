@@ -3,14 +3,14 @@ package com.github.dgsc_fav.wheelytest.api.model;
 import android.os.Parcel;
 import android.os.Parcelable;
 
-import com.github.dgsc_fav.wheelytest.api.Consts;
+import com.github.dgsc_fav.wheelytest.api.ApiConsts;
 import com.google.gson.Gson;
 import com.google.gson.annotations.SerializedName;
 
 /**
  * Created by DG on 19.10.2016.
  */
-public class SimpleLocation implements Parcelable, Consts {
+public class SimpleLocation implements Parcelable, ApiConsts {
     @SerializedName(LATITUDE)
     protected double latitude;
     @SerializedName(LONGITUDE)
