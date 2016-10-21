@@ -5,6 +5,7 @@ import android.content.SharedPreferences;
 import android.preference.PreferenceManager;
 
 /**
+ * Deprecated потому что не было задания хранить последний успешный вход
  * Created by DG on 20.10.2016.
  */
 @Deprecated

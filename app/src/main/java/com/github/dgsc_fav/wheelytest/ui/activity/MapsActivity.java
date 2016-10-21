@@ -55,7 +55,7 @@ public class MapsActivity extends PermissionsActivity implements OnMapReadyCallb
             mService.setISocketServiceConnectionListener(MapsActivity.this);
             mService.setIMessageListener(MapsActivity.this);
 
-            if(mService.isConnected()) {
+            if(mService.isConnecting() || mService.isConnected()) {
                 // если сокетное соединение есть
 
             } else {
@@ -116,7 +116,6 @@ public class MapsActivity extends PermissionsActivity implements OnMapReadyCallb
         if(mIsBound) {
             mService.disconnect();
         }
-
     }
 
     @Override

@@ -22,10 +22,33 @@ import com.github.dgsc_fav.wheelytest.service.SocketService;
  */
 public class LoginActivity extends PermissionsActivity implements SocketService.ISocketServiceConnectionListener, SocketService.IMessageListener {
 
-    private EditText    mUsername;
-    private EditText    mPassword;
-    private Button      mConnect;
-    private ProgressBar mProgressBar;
+    private final ServiceConnection mSocketServiceConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+            mService = ((SocketService.MyBinder) service).getService();
+            mIsBound = true;
+
+            if(mService.isConnected()) {
+                // если сокетное соединение есть, то переход на карту
+                switchToMap();
+            } else {
+                // иначе надо залогиниться
+                enableInputs();
+            }
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+            mService = null;
+            mIsBound = false;
+        }
+    };
+    private SocketService mService;
+    private boolean       mIsBound;
+    private EditText      mUsername;
+    private EditText      mPassword;
+    private Button        mConnect;
+    private ProgressBar   mProgressBar;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -76,10 +99,7 @@ public class LoginActivity extends PermissionsActivity implements SocketService.
 
     public boolean isUsernameAccept() {
         boolean usernameAccept = false;
-        String username = mUsername
-                                  .getText()
-                                  .toString()
-                                  .trim();
+        String username = mUsername.getText().toString().trim();
         if(TextUtils.isEmpty(username)) {
             mUsername.requestFocus();
             mUsername.setError(getString(R.string.username_error));
@@ -91,10 +111,7 @@ public class LoginActivity extends PermissionsActivity implements SocketService.
 
     public boolean isPasswordAccepted() {
         boolean passwordAccepted = false;
-        String password = mPassword
-                                  .getText()
-                                  .toString()
-                                  .trim();
+        String password = mPassword.getText().toString().trim();
         if(TextUtils.isEmpty(password)) {
             mPassword.requestFocus();
             mPassword.setError(getString(R.string.password_error));
@@ -115,16 +132,6 @@ public class LoginActivity extends PermissionsActivity implements SocketService.
         if(mIsBound) {
             mService.connect(username, password, this, this);
         }
-
-        //ServiceHelper.ensureSocketService(this, username, password);
-
-        // надо ли?
-
-        //App.getTokenStore().setLastUsername(username);
-        //App.getTokenStore().setLastPassword(password);
-
-        // это уже если подключились к сервису
-        //switchToMap();
     }
 
     private void switchToMap() {
@@ -143,19 +150,6 @@ public class LoginActivity extends PermissionsActivity implements SocketService.
         } else {
             bindSocketService();
         }
-
-
-//        // проверка, работает ли SocketService
-//        if(ServiceHelper.isSocketServiceRunning(this)) {
-//            // открываем карту
-//            //switchToMap();
-//
-//            bindSocketService();
-//
-//        } else {
-//            // обычный логин
-//            enableInputs();
-//        }
     }
 
     @Override
@@ -163,39 +157,13 @@ public class LoginActivity extends PermissionsActivity implements SocketService.
         finishWithDialog();
     }
 
-    protected SocketService mService;
-    protected boolean         mIsBound;
-    protected final ServiceConnection mSocketServiceConnection = new ServiceConnection() {
-        @Override
-        public void onServiceConnected(ComponentName name, IBinder service) {
-            mService = ((SocketService.MyBinder) service).getService();
-            mIsBound = true;
-
-            if(mService.isConnected()) {
-                // если сокетное соединение есть, то переход на карту
-                switchToMap();
-            } else {
-                // иначе надо залогиниться
-                enableInputs();
-            }
-        }
-
-        @Override
-        public void onServiceDisconnected(ComponentName name) {
-            mService = null;
-            mIsBound = false;
-        }
-    };
-
     private void startSocketService() {
         startService(SocketService.getIntent(this));
     }
 
     private void bindSocketService() {
         if(!mIsBound) {
-            bindService(SocketService.getIntent(this),
-                        mSocketServiceConnection,
-                        BIND_AUTO_CREATE);
+            bindService(SocketService.getIntent(this), mSocketServiceConnection, BIND_AUTO_CREATE);
         }
     }
 
@@ -213,7 +181,6 @@ public class LoginActivity extends PermissionsActivity implements SocketService.
         // если сервис отключил соединение вручную (не по ошибке)
         // это когда нажали disconnect в MapsActivity
         if(mIsBound && !mService.isConnected() && mService.getDisconnectReason() == SocketService.MANUAL) {
-            //mService.requestStopSelf();
             stopService(SocketService.getIntent(this));
         }
         if(mIsBound) {
