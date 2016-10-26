@@ -22,40 +22,32 @@ import com.google.android.gms.common.GooglePlayServicesUtil;
 public abstract class PermissionsActivity extends AppCompatActivity {
     public static final int PERMISSIONS_REQUEST_ACCESS_LOCATION = 100;
 
-    /**
-     * Продолжение работы, когда permission даны
-     */
-    public abstract void processWithPermissionsGranted();
-
-    /**
-     * Продолжение работы, когда permission не даны
-     */
-    public abstract void processWithPermissionsDenied();
-
     public void checkLocationServicePermissions() {
         if(ActivityCompat.checkSelfPermission(this,
-                                              Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED || ActivityCompat.checkSelfPermission(
-                this,
-                Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                                              Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED || ActivityCompat
+                                                                                                                                        .checkSelfPermission(
+                                                                                                                                                this,
+                                                                                                                                                Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
 
             if(ActivityCompat.shouldShowRequestPermissionRationale(this,
-                                                                   Manifest.permission.ACCESS_FINE_LOCATION) || ActivityCompat.shouldShowRequestPermissionRationale(
-                    this,
-                    Manifest.permission.ACCESS_COARSE_LOCATION)) {
+                                                                   Manifest.permission.ACCESS_FINE_LOCATION) || ActivityCompat
+                                                                                                                        .shouldShowRequestPermissionRationale(
+                                                                                                                                this,
+                                                                                                                                Manifest.permission.ACCESS_COARSE_LOCATION)) {
                 // Display UI and wait for user interaction
                 showDialog(R.string.dialog_location_permission_message,
                            new DialogInterface.OnClickListener() {
-                                        @Override
-                                        public void onClick(DialogInterface dialog, int which) {
-                                            requestLocationPermission();
-                                        }
-                                    },
+                               @Override
+                               public void onClick(DialogInterface dialog, int which) {
+                                   requestLocationPermission();
+                               }
+                           },
                            new DialogInterface.OnClickListener() {
-                                        @Override
-                                        public void onClick(DialogInterface dialog, int which) {
-                                            processWithPermissionsDenied();
-                                        }
-                                    });
+                               @Override
+                               public void onClick(DialogInterface dialog, int which) {
+                                   processWithPermissionsDenied();
+                               }
+                           });
             } else {
                 requestLocationPermission();
             }
@@ -74,6 +66,22 @@ public abstract class PermissionsActivity extends AppCompatActivity {
         alertDialog.show();
     }
 
+    public void requestLocationPermission() {
+        ActivityCompat.requestPermissions(this, new String[]{
+                Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION
+        }, PERMISSIONS_REQUEST_ACCESS_LOCATION);
+    }
+
+    /**
+     * Продолжение работы, когда permission не даны
+     */
+    public abstract void processWithPermissionsDenied();
+
+    /**
+     * Продолжение работы, когда permission даны
+     */
+    public abstract void processWithPermissionsGranted();
+
     public void showSettingsAlert() {
         AlertDialog.Builder alertDialog = new AlertDialog.Builder(this);
         alertDialog.setTitle("GPS is settings");
@@ -85,11 +93,12 @@ public abstract class PermissionsActivity extends AppCompatActivity {
                 startActivity(intent);
             }
         });
-        alertDialog.setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
-            public void onClick(DialogInterface dialog, int which) {
-                dialog.cancel();
-            }
-        });
+        alertDialog.setNegativeButton(android.R.string.cancel,
+                                      new DialogInterface.OnClickListener() {
+                                          public void onClick(DialogInterface dialog, int which) {
+                                              dialog.cancel();
+                                          }
+                                      });
         alertDialog.show();
     }
 
@@ -102,12 +111,6 @@ public abstract class PermissionsActivity extends AppCompatActivity {
         }, null);
     }
 
-    public void requestLocationPermission() {
-        ActivityCompat.requestPermissions(this, new String[]{
-                Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION
-        }, PERMISSIONS_REQUEST_ACCESS_LOCATION);
-    }
-
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         if(requestCode == PERMISSIONS_REQUEST_ACCESS_LOCATION) {
@@ -118,11 +121,9 @@ public abstract class PermissionsActivity extends AppCompatActivity {
                 processWithPermissionsGranted();
             } else {
                 // прав нет. завершение работы
-                Toast
-                        .makeText(this,
-                                  getString(R.string.permission_location_denied),
-                                  Toast.LENGTH_SHORT)
-                        .show();
+                Toast.makeText(this,
+                               getString(R.string.permission_location_denied),
+                               Toast.LENGTH_SHORT).show();
 
                 processWithPermissionsDenied();
             }

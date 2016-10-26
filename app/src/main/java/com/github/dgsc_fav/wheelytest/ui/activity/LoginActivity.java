@@ -23,6 +23,12 @@ import com.github.dgsc_fav.wheelytest.ws.WebSocketClient;
  */
 public class LoginActivity extends PermissionsActivity implements WebSocketClient.ISocketServiceConnectionListener, WebSocketClient.IMessageListener {
 
+    private SocketService mService;
+    private boolean       mIsBound;
+    private EditText      mUsername;
+    private EditText      mPassword;
+    private Button        mConnect;
+    private ProgressBar   mProgressBar;
     private final ServiceConnection mSocketServiceConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
@@ -42,12 +48,6 @@ public class LoginActivity extends PermissionsActivity implements WebSocketClien
             mService = null;
         }
     };
-    private SocketService mService;
-    private boolean       mIsBound;
-    private EditText      mUsername;
-    private EditText      mPassword;
-    private Button        mConnect;
-    private ProgressBar   mProgressBar;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -80,20 +80,6 @@ public class LoginActivity extends PermissionsActivity implements WebSocketClien
             // проверка наличия permissions
             checkLocationServicePermissions();
         }
-    }
-
-    private void enableInputs() {
-        mUsername.setEnabled(true);
-        mPassword.setEnabled(true);
-        mConnect.setEnabled(true);
-        mProgressBar.setVisibility(View.GONE);
-    }
-
-    private void disableInputs() {
-        mUsername.setEnabled(false);
-        mPassword.setEnabled(false);
-        mConnect.setEnabled(false);
-        mProgressBar.setVisibility(View.VISIBLE);
     }
 
     public boolean isUsernameAccept() {
@@ -133,9 +119,37 @@ public class LoginActivity extends PermissionsActivity implements WebSocketClien
         }
     }
 
-    private void switchToMap() {
-        startActivity(new Intent(this, MapsActivity.class));
-        finish(); // не возвращаемся по назад из MapsActivity
+    private void disableInputs() {
+        mUsername.setEnabled(false);
+        mPassword.setEnabled(false);
+        mConnect.setEnabled(false);
+        mProgressBar.setVisibility(View.VISIBLE);
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+
+        bindSocketService();
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+
+        // если сервис отключил соединение вручную (не по ошибке)
+        // это когда нажали disconnect в MapsActivity
+        if(mIsBound && !mService.getWebSocketClient().isConnected() && mService
+                                                                               .getWebSocketClient()
+                                                                               .getDisconnectReason() == SocketService.MANUAL) {
+            unbindService(mSocketServiceConnection);
+            mIsBound = false;
+            stopService(SocketService.getIntent(this));
+        } else if(mIsBound) {
+            // иначе, просто отсоединяемся
+            unbindService(mSocketServiceConnection);
+            mIsBound = false;
+        }
     }
 
     @Override
@@ -168,32 +182,6 @@ public class LoginActivity extends PermissionsActivity implements WebSocketClien
     }
 
     @Override
-    public void onStart() {
-        super.onStart();
-
-        bindSocketService();
-    }
-
-    @Override
-    public void onStop() {
-        super.onStop();
-
-        // если сервис отключил соединение вручную (не по ошибке)
-        // это когда нажали disconnect в MapsActivity
-        if(mIsBound && !mService.getWebSocketClient().isConnected() && mService
-                                                                               .getWebSocketClient()
-                                                                               .getDisconnectReason() == SocketService.MANUAL) {
-            unbindService(mSocketServiceConnection);
-            mIsBound = false;
-            stopService(SocketService.getIntent(this));
-        } else if(mIsBound) {
-            // иначе, просто отсоединяемся
-            unbindService(mSocketServiceConnection);
-            mIsBound = false;
-        }
-    }
-
-    @Override
     public void onSocketServiceConnected() {
         // если сокетное соединение есть, то переход на карту
         runOnUiThread(new Runnable() {
@@ -204,15 +192,29 @@ public class LoginActivity extends PermissionsActivity implements WebSocketClien
         });
     }
 
+    private void switchToMap() {
+        startActivity(new Intent(this, MapsActivity.class));
+        finish(); // не возвращаемся по назад из MapsActivity
+    }
+
     @Override
     public void onSocketServiceError(final Throwable throwable) {
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
-                Toast.makeText(LoginActivity.this, throwable.getLocalizedMessage(), Toast.LENGTH_LONG).show();
+                Toast.makeText(LoginActivity.this,
+                               throwable.getLocalizedMessage(),
+                               Toast.LENGTH_LONG).show();
                 enableInputs();
             }
         });
+    }
+
+    private void enableInputs() {
+        mUsername.setEnabled(true);
+        mPassword.setEnabled(true);
+        mConnect.setEnabled(true);
+        mProgressBar.setVisibility(View.GONE);
     }
 
     @Override

@@ -58,9 +58,15 @@ public abstract class ForegroundService extends Service implements IntentConsts 
                                                                 PendingIntent.FLAG_UPDATE_CURRENT);
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(this);
-        builder.setContentIntent(contentIntent).setOngoing(true).setAutoCancel(false)
-               .setSmallIcon(R.mipmap.ic_launcher).setTicker(ticker).setContentTitle(title)
-               .setContentText(text).setWhen(System.currentTimeMillis());
+        builder
+                .setContentIntent(contentIntent)
+                .setOngoing(true)
+                .setAutoCancel(false)
+                .setSmallIcon(R.mipmap.ic_launcher)
+                .setTicker(ticker)
+                .setContentTitle(title)
+                .setContentText(text)
+                .setWhen(System.currentTimeMillis());
 
         Notification notification;
         if(android.os.Build.VERSION.SDK_INT <= 15) {

@@ -10,18 +10,6 @@ import com.google.gson.annotations.SerializedName;
  * Created by DG on 19.10.2016.
  */
 public class IdentifableLocation extends SimpleLocation implements Parcelable, ApiConsts {
-    @SerializedName(ID)
-    protected int   id;
-
-    public IdentifableLocation(int id, float latitude, float longitude) {
-        super(latitude, longitude);
-    }
-
-    protected IdentifableLocation(Parcel in) {
-        super(in);
-        id = in.readInt();
-    }
-
     public static final Creator<IdentifableLocation> CREATOR = new Creator<IdentifableLocation>() {
         @Override
         public IdentifableLocation createFromParcel(Parcel in) {
@@ -33,6 +21,17 @@ public class IdentifableLocation extends SimpleLocation implements Parcelable, A
             return new IdentifableLocation[size];
         }
     };
+    @SerializedName(ID)
+    protected int id;
+
+    public IdentifableLocation(int id, float latitude, float longitude) {
+        super(latitude, longitude);
+    }
+
+    protected IdentifableLocation(Parcel in) {
+        super(in);
+        id = in.readInt();
+    }
 
     public int getId() {
         return id;

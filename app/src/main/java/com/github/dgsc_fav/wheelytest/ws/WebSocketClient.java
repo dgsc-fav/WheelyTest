@@ -28,25 +28,17 @@ import static com.github.dgsc_fav.wheelytest.service.SocketService.ON_ERROR;
  */
 public class WebSocketClient implements ApiConsts {
 
-    /**
-     * Listener соединения с сокетом
-     */
-    public interface ISocketServiceConnectionListener {
-        void onSocketServiceConnected();
-
-        void onSocketServiceError(Throwable throwable);
-
-        void onSocketServiceDisconnect(String msg, int reason);
-    }
-
-    /**
-     * Listener сообщений от сокета
-     */
-    public interface IMessageListener {
-        void onMessage(String msg);
-    }
-
     private final ExecutorService  mExecutorService  = Executors.newCachedThreadPool();
+    private ISocketServiceConnectionListener mConnectionListener;
+    private IMessageListener                 mMessageListener;
+    private boolean                          mRequestDisconnect;
+    private WebSocketState                   mWebSocketState;
+    private String                           mLastMessage;
+    // true, если мы должны быть Connected
+    private boolean                          mNeedConnected;
+    private String                           mUsername;
+    private String                           mPassword;
+    private WebSocket                        mWebSocket;
     private final WebSocketAdapter mWebSocketAdapter = new WebSocketAdapter() {
         @Override
         public void onStateChanged(WebSocket websocket, WebSocketState newState) throws Exception {
@@ -83,15 +75,9 @@ public class WebSocketClient implements ApiConsts {
         }
 
         @Override
-        public void onError(WebSocket websocket, WebSocketException cause) throws Exception {
-            super.onError(websocket, cause);
-            reconnect();
-        }
-
-        @Override
-        public void onUnexpectedError(WebSocket websocket, WebSocketException cause) throws Exception {
-            super.onUnexpectedError(websocket, cause);
-            reconnect();
+        public void onPongFrame(WebSocket websocket, WebSocketFrame frame) throws Exception {
+            super.onPongFrame(websocket, frame);
+            websocket.sendPong(frame.getPayloadText());
         }
 
         @Override
@@ -105,34 +91,17 @@ public class WebSocketClient implements ApiConsts {
         }
 
         @Override
-        public void onPongFrame(WebSocket websocket, WebSocketFrame frame) throws Exception {
-            super.onPongFrame(websocket, frame);
-            websocket.sendPong(frame.getPayloadText());
+        public void onError(WebSocket websocket, WebSocketException cause) throws Exception {
+            super.onError(websocket, cause);
+            reconnect();
+        }
+
+        @Override
+        public void onUnexpectedError(WebSocket websocket, WebSocketException cause) throws Exception {
+            super.onUnexpectedError(websocket, cause);
+            reconnect();
         }
     };
-
-    private ISocketServiceConnectionListener mConnectionListener;
-    private IMessageListener                 mMessageListener;
-    private boolean                          mRequestDisconnect;
-    private WebSocketState                   mWebSocketState;
-    private String                           mLastMessage;
-    // true, если мы должны быть Connected
-    private boolean                          mNeedConnected;
-    private String                           mUsername;
-    private String                           mPassword;
-    private WebSocket                        mWebSocket;
-
-    public void setSocketServiceConnectionListener(ISocketServiceConnectionListener iSocketServiceConnectionListener) {
-        mConnectionListener = iSocketServiceConnectionListener;
-    }
-
-    public void setMessageListener(IMessageListener iMessageListener) {
-        mMessageListener = iMessageListener;
-        if(mMessageListener != null) {
-            // вдруг, подключились, а сообщения уже были
-            mMessageListener.onMessage(mLastMessage);
-        }
-    }
 
     public void connect(String username, String password, ISocketServiceConnectionListener iSocketServiceConnectionListener, IMessageListener iMessageListener) {
         mUsername = username;
@@ -148,17 +117,16 @@ public class WebSocketClient implements ApiConsts {
         }
     }
 
-    public void disconnect() {
-        mRequestDisconnect = true;
-        mNeedConnected = false;
-
-        if(mWebSocket != null) {
-            mWebSocket.disconnect();
-        }
+    public void setSocketServiceConnectionListener(ISocketServiceConnectionListener iSocketServiceConnectionListener) {
+        mConnectionListener = iSocketServiceConnectionListener;
     }
 
-    public int getDisconnectReason() {
-        return mRequestDisconnect ? MANUAL : ON_ERROR;
+    public void setMessageListener(IMessageListener iMessageListener) {
+        mMessageListener = iMessageListener;
+        if(mMessageListener != null) {
+            // вдруг, подключились, а сообщения уже были
+            mMessageListener.onMessage(mLastMessage);
+        }
     }
 
     private void connect() {
@@ -221,6 +189,25 @@ public class WebSocketClient implements ApiConsts {
         });
     }
 
+    private void dispatchError(Throwable throwable) {
+        if(mConnectionListener != null) {
+            mConnectionListener.onSocketServiceError(throwable);
+        }
+    }
+
+    public void disconnect() {
+        mRequestDisconnect = true;
+        mNeedConnected = false;
+
+        if(mWebSocket != null) {
+            mWebSocket.disconnect();
+        }
+    }
+
+    public int getDisconnectReason() {
+        return mRequestDisconnect ? MANUAL : ON_ERROR;
+    }
+
     private void reconnect() {
         try {
             mWebSocket = mWebSocket.recreate().connect();
@@ -256,9 +243,21 @@ public class WebSocketClient implements ApiConsts {
         return mWebSocketState == WebSocketState.CONNECTING;
     }
 
-    private void dispatchError(Throwable throwable) {
-        if(mConnectionListener != null) {
-            mConnectionListener.onSocketServiceError(throwable);
-        }
+    /**
+     * Listener соединения с сокетом
+     */
+    public interface ISocketServiceConnectionListener {
+        void onSocketServiceConnected();
+
+        void onSocketServiceError(Throwable throwable);
+
+        void onSocketServiceDisconnect(String msg, int reason);
+    }
+
+    /**
+     * Listener сообщений от сокета
+     */
+    public interface IMessageListener {
+        void onMessage(String msg);
     }
 }

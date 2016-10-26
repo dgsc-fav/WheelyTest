@@ -53,12 +53,7 @@ import java.util.List;
 public class MapsActivity extends PermissionsActivity implements OnMapReadyCallback, GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, LocationListener, WebSocketClient.ISocketServiceConnectionListener, WebSocketClient.IMessageListener {
 
     private final IntentFilter      mIntentFilter            = new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION);
-    private final BroadcastReceiver mBroadcastReceiver       = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            updateWaitingNetworkInfo(context);
-        }
-    };
+    private SocketService            mService;
     private final ServiceConnection mSocketServiceConnection = new ServiceConnection() {
         @Override
         public void onServiceConnected(ComponentName name, IBinder service) {
@@ -80,11 +75,16 @@ public class MapsActivity extends PermissionsActivity implements OnMapReadyCallb
             mService = null;
         }
     };
-    private SocketService            mService;
     private boolean                  mIsBound;
     private Button                   mDisconnect;
     private View                     mWaitingSatellitesInfo;
     private View                     mWaitingNetworkInfo;
+    private final BroadcastReceiver mBroadcastReceiver       = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            updateWaitingNetworkInfo(context);
+        }
+    };
     private Location                 mMyLocation;
     private GoogleMap                mMap;
     private LocationRequest          mLocationRequest;
@@ -131,6 +131,27 @@ public class MapsActivity extends PermissionsActivity implements OnMapReadyCallb
         }
     }
 
+    private void showWaitingSatellitesInfo() {
+        mWaitingSatellitesInfo.setVisibility(View.VISIBLE);
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+
+        bindSocketService();
+    }
+
+    @Override
+    public void onStop() {
+        super.onStop();
+
+        if(mIsBound) {
+            unbindService(mSocketServiceConnection);
+            mIsBound = false;
+        }
+    }
+
     @Override
     public boolean onSupportNavigateUp() {
         onBackPressed();
@@ -140,6 +161,49 @@ public class MapsActivity extends PermissionsActivity implements OnMapReadyCallb
     @Override
     public void onBackPressed() {
         finish();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+
+        if(mGoogleApiClient != null && mGoogleApiClient.isConnected()) {
+            mGoogleApiClient.disconnect();
+        }
+
+        // подпишемся на сообщения о смени статуса сети
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(mBroadcastReceiver);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        if(mGoogleApiClient != null && !mGoogleApiClient.isConnected()) {
+            mGoogleApiClient.connect();
+        }
+
+        updateWaitingNetworkInfo(this);
+
+        // подпишемся на сообщения о смени статуса сети
+        LocalBroadcastManager.getInstance(this).registerReceiver(mBroadcastReceiver, mIntentFilter);
+    }
+
+    private void updateWaitingNetworkInfo(Context context) {
+        boolean isNetworkAvailable = NetUtils.isNetworkAvailable(context);
+        if(isNetworkAvailable) {
+            hideWaitingNetworkInfo();
+        } else {
+            showWaitingNetworkInfo();
+        }
+    }
+
+    private void hideWaitingNetworkInfo() {
+        mWaitingNetworkInfo.setVisibility(View.GONE);
+    }
+
+    private void showWaitingNetworkInfo() {
+        mWaitingNetworkInfo.setVisibility(View.VISIBLE);
     }
 
     @Override
@@ -153,41 +217,6 @@ public class MapsActivity extends PermissionsActivity implements OnMapReadyCallb
 
         //noinspection ResourceType
         mMap.setMyLocationEnabled(true);
-    }
-
-    private void updateMapToMyLocation() {
-        if(mMap != null && mMyLocation != null) {
-            mMap.animateCamera(CameraUpdateFactory.newLatLng(new LatLng(mMyLocation.getLatitude(),
-                                                                        mMyLocation.getLongitude())));
-            hideWaitingSatellitesInfo();
-        } else {
-            showWaitingSatellitesInfo();
-        }
-    }
-
-    private void showWaitingSatellitesInfo() {
-        mWaitingSatellitesInfo.setVisibility(View.VISIBLE);
-    }
-
-    private void hideWaitingSatellitesInfo() {
-        mWaitingSatellitesInfo.setVisibility(View.GONE);
-    }
-
-    private void showWaitingNetworkInfo() {
-        mWaitingNetworkInfo.setVisibility(View.VISIBLE);
-    }
-
-    private void hideWaitingNetworkInfo() {
-        mWaitingNetworkInfo.setVisibility(View.GONE);
-    }
-
-    private void updateWaitingNetworkInfo(Context context) {
-        boolean isNetworkAvailable = NetUtils.isNetworkAvailable(context);
-        if(isNetworkAvailable) {
-            hideWaitingNetworkInfo();
-        } else {
-            showWaitingNetworkInfo();
-        }
     }
 
     @Override
@@ -214,32 +243,6 @@ public class MapsActivity extends PermissionsActivity implements OnMapReadyCallb
         finishWithDialog();
     }
 
-    @Override
-    protected void onResume() {
-        super.onResume();
-
-        if(mGoogleApiClient != null && !mGoogleApiClient.isConnected()) {
-            mGoogleApiClient.connect();
-        }
-
-        updateWaitingNetworkInfo(this);
-
-        // подпишемся на сообщения о смени статуса сети
-        LocalBroadcastManager.getInstance(this).registerReceiver(mBroadcastReceiver, mIntentFilter);
-    }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-
-        if(mGoogleApiClient != null && mGoogleApiClient.isConnected()) {
-            mGoogleApiClient.disconnect();
-        }
-
-        // подпишемся на сообщения о смени статуса сети
-        LocalBroadcastManager.getInstance(this).unregisterReceiver(mBroadcastReceiver);
-    }
-
     private void getLocation() {
         mLocationRequest = LocationRequest.create();
         mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
@@ -253,6 +256,17 @@ public class MapsActivity extends PermissionsActivity implements OnMapReadyCallb
                                    .addConnectionCallbacks(this)
                                    .addOnConnectionFailedListener(this)
                                    .build();
+    }
+
+    private void startSocketService() {
+        startService(SocketService.getIntent(this));
+    }
+
+    private void bindSocketService() {
+        if(!mIsBound) {
+            bindService(SocketService.getIntent(this), mSocketServiceConnection, BIND_AUTO_CREATE);
+            mIsBound = true;
+        }
     }
 
     @Override
@@ -272,37 +286,23 @@ public class MapsActivity extends PermissionsActivity implements OnMapReadyCallb
         updateMapToMyLocation();
     }
 
+    private void updateMapToMyLocation() {
+        if(mMap != null && mMyLocation != null) {
+            mMap.animateCamera(CameraUpdateFactory.newLatLng(new LatLng(mMyLocation.getLatitude(),
+                                                                        mMyLocation.getLongitude())));
+            hideWaitingSatellitesInfo();
+        } else {
+            showWaitingSatellitesInfo();
+        }
+    }
+
+    private void hideWaitingSatellitesInfo() {
+        mWaitingSatellitesInfo.setVisibility(View.GONE);
+    }
+
     @Override
     public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
 
-    }
-
-    private void startSocketService() {
-        startService(SocketService.getIntent(this));
-    }
-
-    private void bindSocketService() {
-        if(!mIsBound) {
-            bindService(SocketService.getIntent(this), mSocketServiceConnection, BIND_AUTO_CREATE);
-            mIsBound = true;
-        }
-    }
-
-    @Override
-    public void onStart() {
-        super.onStart();
-
-        bindSocketService();
-    }
-
-    @Override
-    public void onStop() {
-        super.onStop();
-
-        if(mIsBound) {
-            unbindService(mSocketServiceConnection);
-            mIsBound = false;
-        }
     }
 
     @Override

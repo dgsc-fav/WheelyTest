@@ -14,5 +14,5 @@ public interface IntentConsts {
     String KEY_LOCATION                 = "location";
     String KEY_MARKERS                  = "markers";
     String ACTION_NETWORK_STATE_CHANGES = "android.net.conn.CONNECTIVITY_CHANGE";//"network_state_changes";
-    String NETWORK_STATE = "network_state";
+    String NETWORK_STATE                = "network_state";
 }

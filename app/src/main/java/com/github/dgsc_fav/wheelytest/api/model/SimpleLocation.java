@@ -11,6 +11,17 @@ import com.google.gson.annotations.SerializedName;
  * Created by DG on 19.10.2016.
  */
 public class SimpleLocation implements Parcelable, ApiConsts {
+    public static final Creator<SimpleLocation> CREATOR = new Creator<SimpleLocation>() {
+        @Override
+        public SimpleLocation createFromParcel(Parcel in) {
+            return new SimpleLocation(in);
+        }
+
+        @Override
+        public SimpleLocation[] newArray(int size) {
+            return new SimpleLocation[size];
+        }
+    };
     @SerializedName(LATITUDE)
     protected double latitude;
     @SerializedName(LONGITUDE)
@@ -25,18 +36,6 @@ public class SimpleLocation implements Parcelable, ApiConsts {
         latitude = in.readFloat();
         longitude = in.readFloat();
     }
-
-    public static final Creator<SimpleLocation> CREATOR = new Creator<SimpleLocation>() {
-        @Override
-        public SimpleLocation createFromParcel(Parcel in) {
-            return new SimpleLocation(in);
-        }
-
-        @Override
-        public SimpleLocation[] newArray(int size) {
-            return new SimpleLocation[size];
-        }
-    };
 
     public double getLatitude() {
         return latitude;

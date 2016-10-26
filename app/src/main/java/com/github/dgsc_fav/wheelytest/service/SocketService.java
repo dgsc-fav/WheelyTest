@@ -99,11 +99,6 @@ public class SocketService extends ForegroundService implements GoogleApiClient.
         super.onDestroy();
     }
 
-    @NonNull
-    public WebSocketClient getWebSocketClient() {
-        return mWebSocketClient;
-    }
-
     private void startHandleLocation() {
         mLocationRequest = LocationRequest.create();
         mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
@@ -118,6 +113,11 @@ public class SocketService extends ForegroundService implements GoogleApiClient.
                                    .addOnConnectionFailedListener(this)
                                    .build();
         mGoogleApiClient.connect();
+    }
+
+    @NonNull
+    public WebSocketClient getWebSocketClient() {
+        return mWebSocketClient;
     }
 
     @Override
